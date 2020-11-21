@@ -1,3 +1,4 @@
+
 //============================================================================
 // Name        : Prog_STR_MCC.cpp
 // Author      : Bultot Geoffrey, Ishumaru Geoffrey
@@ -14,9 +15,7 @@
 #include "time.h"
 
 using namespace std;
-
-#define C_PIN_TX 3
-#define C_PIN_RX 4
+int i_measure;
 
 void my_delay(int del)
 {
@@ -39,28 +38,21 @@ int main()
 	int i = 0;
 	int PID;
 	sched_param schedparam;
-	cout << "Signal carre 500µs" << endl; // prints Signal carre 500µs
-	wiringPiSetupGpio();
 	PID = getpid();
-	std::cout << "PID = " << PID << std::endl; // !!! breakpoint avec commande !!!
+	cout << "PROG STR MCC PID = "<< PID << endl; // prints Signal carre 500µs
+
 
 	sched_getparam(PID,&schedparam);
 	schedparam.sched_priority = 1;
 	sched_setscheduler(PID,SCHED_FIFO,&schedparam);
 
-	pinMode(2,OUTPUT);
-	pinMode(C_PIN_TX,OUTPUT);
-	pinMode(C_PIN_RX,INPUT);
-
-
-
-	digitalWrite(C_PIN_TX, HIGH);
-	i=0;
+	initSerial(900, 2, 3);
+	initPID_Thread(4);
 	while(1)
 	{
-		std::cout<<readSpeed()<<std::endl;
+		i_measure = readSpeed();
+		std::cout<< "mesure = " <<i_measure<<std::endl;
 
 	}
 	return 0;
 }
-
