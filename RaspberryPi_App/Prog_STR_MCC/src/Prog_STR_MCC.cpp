@@ -6,11 +6,17 @@
 // Description : Hello World in C++, Ansi-style
 //============================================================================
 
+#include <MCC_PID.hpp>
+#include <serial.hpp>
 #include <iostream>
 #include "unistd.h"
 #include <wiringPi.h>
 #include "time.h"
+
 using namespace std;
+
+#define C_PIN_TX 3
+#define C_PIN_RX 4
 
 void my_delay(int del)
 {
@@ -24,10 +30,7 @@ void my_delay(int del)
 		deadline.tv_sec++;
 	}
 
-	//digitalWrite(2, HIGH);
 	clock_nanosleep( CLOCK_MONOTONIC, TIMER_ABSTIME, &deadline, NULL);
-	//digitalWrite(2, LOW);
-	//clock_nanosleep( CLOCK_MONOTONIC, TIMER_ABSTIME, &deadline, NULL);
 }
 
 
@@ -39,32 +42,25 @@ int main()
 	cout << "Signal carre 500µs" << endl; // prints Signal carre 500µs
 	wiringPiSetupGpio();
 	PID = getpid();
+	std::cout << "PID = " << PID << std::endl; // !!! breakpoint avec commande !!!
+
 	sched_getparam(PID,&schedparam);
 	schedparam.sched_priority = 1;
 	sched_setscheduler(PID,SCHED_FIFO,&schedparam);
 
 	pinMode(2,OUTPUT);
-	pinMode(3,OUTPUT);
+	pinMode(C_PIN_TX,OUTPUT);
+	pinMode(C_PIN_RX,INPUT);
 
-	while(1)//i<100000)
+
+
+	digitalWrite(C_PIN_TX, HIGH);
+	i=0;
+	while(1)
 	{
-		i=0;
-		digitalWrite(2, HIGH);
-		//my_delay(240);
-		/*while(i<120)
-			i++;
-		i=0;
-		*/
-		usleep(250);
-		digitalWrite(2, LOW);
-		usleep(250);
-		//my_delay(240);
-		while(i<120)
-			i++;
+		std::cout<<readSpeed()<<std::endl;
+
 	}
-
-
 	return 0;
 }
-
 
