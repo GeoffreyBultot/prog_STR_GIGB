@@ -46,5 +46,7 @@ int readSpeed()
 		}
 		receptionArray[i] = currentByte;
 	}
+	digitalWrite(iTxPin, HIGH);
+
 	return(receptionArray[0]);
 }
