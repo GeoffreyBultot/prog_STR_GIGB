@@ -73,7 +73,7 @@ void Calcul()
 
 	E2_before = E_before;		//définition de l'erreur avant la précédente
 	E_before = E;				//définition de l'erreur précédente
-	pwmWrite(ipin_MLI, u);
+	//pwmWrite(ipin_MLI, u);
 }
 
 void* thread_PID(void* x)

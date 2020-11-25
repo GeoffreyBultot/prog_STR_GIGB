@@ -64,6 +64,7 @@ int main()
 	PID = getpid();
 	cout << "PROG STR MCC PID = "<< PID << endl; // prints Signal carre 500µs
 
+	wiringPiSetupGpio();
 	// - - - - - Mise en place du handler de signal - - - - -
 
     // Création et initialisation de la structure POSIX
@@ -72,7 +73,7 @@ int main()
     signalAction.sa_flags = 0;
     // Fonction appelée lors de la signalisation
     signalAction.sa_handler = &generalSignalHandler;
-    // Interception de SIGINT uniquement
+    // Interception de SIGTEM uniquement
 
     if (sigaction(SIGTERM, &signalAction, NULL) == -1) // si erreur
         std::cerr << "Impossible d'intercepter SIGTERM !" << std::endl;
@@ -82,15 +83,24 @@ int main()
 	schedparam.sched_priority = 1;
 	sched_setscheduler(PID,SCHED_FIFO,&schedparam);
 
-	initSerial(900, 2, 3);
 	initPID_Thread(18);
-
+	initSerial(900, 27, 17);
+	usleep(100000);
+	//wiringPiSetupGpio();
+	//pinMode(27,OUTPUT);
 	while(1)
 	{
 		i_measure = readSpeed();
-		i_measure = 100;
-		std::cout<< "mesure = " <<i_measure<<std::endl;
 
+		/*usleep(25000);
+		digitalWrite(27, 0);
+		usleep(25000);
+		digitalWrite(27, 1);
+		*/
+
+		//i_measure = 100;
+		//std::cout<< "mesure = " <<i_measure<<std::endl;
+		usleep(5000000);
 	}
 	return 0;
 }
