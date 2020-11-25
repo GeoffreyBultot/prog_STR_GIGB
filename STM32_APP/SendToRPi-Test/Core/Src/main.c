@@ -32,7 +32,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define NB_BYTES_TO_SEND	4
+#define NB_BYTES_TO_SEND	2
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -95,7 +95,8 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
-  HAL_GPIO_WritePin(TX_GPIO_Port, TX_Pin, GPIO_PIN_SET);
+  // done in gpio init so config in the .ioc
+  //HAL_GPIO_WritePin(TX_GPIO_Port, TX_Pin, GPIO_PIN_SET);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -204,16 +205,26 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOA_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(DEBUG_INT_GPIO_Port, DEBUG_INT_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(TX_GPIO_Port, TX_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(TX_GPIO_Port, TX_Pin, GPIO_PIN_SET);
 
-  /*Configure GPIO pin : B1_Pin */
-  GPIO_InitStruct.Pin = B1_Pin;
+  /*Configure GPIO pins : B1_Pin RX_Pin */
+  GPIO_InitStruct.Pin = B1_Pin|RX_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : DEBUG_INT_Pin */
+  GPIO_InitStruct.Pin = DEBUG_INT_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  HAL_GPIO_Init(DEBUG_INT_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : LD2_Pin */
   GPIO_InitStruct.Pin = LD2_Pin;
@@ -224,16 +235,10 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin : TX_Pin */
   GPIO_InitStruct.Pin = TX_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(TX_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : RX_Pin */
-  GPIO_InitStruct.Pin = RX_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
-  HAL_GPIO_Init(RX_GPIO_Port, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
   HAL_NVIC_SetPriority(EXTI4_15_IRQn, 0, 0);
@@ -243,38 +248,55 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
-	if(!is_sending){
+	HAL_GPIO_WritePin(DEBUG_INT_GPIO_Port, DEBUG_INT_Pin, GPIO_PIN_SET);
+	if(!is_sending){ 	// en falling edge, premier
+		// init pin on reset
+		HAL_GPIO_WritePin(TX_GPIO_Port, TX_Pin, GPIO_PIN_RESET);
+
 		// set pin on rising edge
 		GPIO_InitTypeDef GPIO_InitStruct = {0};
 		GPIO_InitStruct.Pin = RX_Pin;
-		  GPIO_InitStruct.Pull = GPIO_PULLUP;
+		GPIO_InitStruct.Pull = GPIO_NOPULL;
 		GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
 		HAL_GPIO_Init(RX_GPIO_Port, &GPIO_InitStruct);
-		// init pin on reset
-		HAL_GPIO_WritePin(TX_GPIO_Port, TX_Pin, GPIO_PIN_RESET);
+
+		// Debug LED
+		HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
+
+		// Compteurs à 0
+		tx_bit_sending = 0;
+		tx_byte_sending = 0;
+
 		is_sending = 1;
 	}
 	else{
-		HAL_GPIO_WritePin(TX_GPIO_Port, TX_Pin, (bToSend[tx_byte_sending] & (1<<tx_bit_sending)) );
-		tx_bit_sending++;
+		if(tx_byte_sending == NB_BYTES_TO_SEND)
+		{
+			// init pin on reset
+			HAL_GPIO_WritePin(TX_GPIO_Port, TX_Pin, GPIO_PIN_SET);
 
-		if(tx_bit_sending == 8){
-			tx_bit_sending=0;
-			tx_byte_sending++;
-		}
-		else if(tx_byte_sending == NB_BYTES_TO_SEND){
-			// set pin on falling edge
+			// set pin on rising edge
 			GPIO_InitTypeDef GPIO_InitStruct = {0};
 			GPIO_InitStruct.Pin = RX_Pin;
+			GPIO_InitStruct.Pull = GPIO_NOPULL;
 			GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
-			GPIO_InitStruct.Pull = GPIO_PULLUP;
 			HAL_GPIO_Init(RX_GPIO_Port, &GPIO_InitStruct);
 
-			tx_byte_sending = 0;
-			HAL_GPIO_WritePin(TX_GPIO_Port, TX_Pin, GPIO_PIN_SET);
-			is_sending=0;
+			// Debug LED
+			HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+
+			is_sending = 0;
+		}
+		else{
+			HAL_GPIO_WritePin(TX_GPIO_Port, TX_Pin, (bToSend[tx_byte_sending] & (1<<tx_bit_sending)));
+			tx_bit_sending++;
+			if(tx_bit_sending == 8){
+				tx_bit_sending = 0;
+				tx_byte_sending++;
+			}
 		}
 	}
+	HAL_GPIO_WritePin(DEBUG_INT_GPIO_Port, DEBUG_INT_Pin, GPIO_PIN_RESET);
 }
 
 /* USER CODE END 4 */

@@ -1,0 +1,10 @@
+12:25:14 **** Incremental Build of configuration Debug for project SendToRPi-Test ****
+make -j8 all 
+arm-none-eabi-size   SendToRPi-Test.elf 
+   text	   data	    bss	    dec	    hex	filename
+   8532	     20	   1716	  10268	   281c	SendToRPi-Test.elf
+Finished building: default.size.stdout
+ 
+
+12:25:14 Build Finished. 0 errors, 0 warnings. (took 385ms)
+
