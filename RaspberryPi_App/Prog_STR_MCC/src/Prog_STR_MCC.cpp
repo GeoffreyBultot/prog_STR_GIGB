@@ -1,3 +1,4 @@
+
 //============================================================================
 // Name        : Prog_STR_MCC.cpp
 // Author      : Bultot Geoffrey, Ishumaru Geoffrey
@@ -6,11 +7,16 @@
 // Description : Hello World in C++, Ansi-style
 //============================================================================
 
+#include <MCC_PID.hpp>
+#include <serial.hpp>
 #include <iostream>
 #include "unistd.h"
 #include <wiringPi.h>
 #include "time.h"
+#include <signal.h>
+
 using namespace std;
+int i_measure;
 
 void my_delay(int del)
 {
@@ -24,47 +30,80 @@ void my_delay(int del)
 		deadline.tv_sec++;
 	}
 
-	//digitalWrite(2, HIGH);
 	clock_nanosleep( CLOCK_MONOTONIC, TIMER_ABSTIME, &deadline, NULL);
-	//digitalWrite(2, LOW);
-	//clock_nanosleep( CLOCK_MONOTONIC, TIMER_ABSTIME, &deadline, NULL);
 }
 
+
+
+void terminerProgramme()
+{
+	std::cout<< "termine"<<std::endl;
+
+}
+
+// Pourrait intercepter et gérer tous les signaux, selon la configuration
+void generalSignalHandler(int signal)
+{
+	std::cout<<"signal: " <<signal<<std::endl;
+    if (1)//signal == SIGTERM)
+    {
+        std::cout << std::endl << "Exécution de terminerProgramme() en cours..." << std::endl;
+        terminerProgramme();
+        std::cout << "Fin." << std::endl;
+        exit(0);
+    }
+    else
+        std::cerr << "Signal non-géré" << std::endl;
+}
 
 int main()
 {
 	int i = 0;
 	int PID;
 	sched_param schedparam;
-	cout << "Signal carre 500µs" << endl; // prints Signal carre 500µs
-	wiringPiSetupGpio();
 	PID = getpid();
+	cout << "PROG STR MCC PID = "<< PID << endl; // prints Signal carre 500µs
+
+	wiringPiSetupGpio();
+	// - - - - - Mise en place du handler de signal - - - - -
+
+    // Création et initialisation de la structure POSIX
+    struct sigaction signalAction;
+    sigemptyset(&signalAction.sa_mask);
+    signalAction.sa_flags = 0;
+    // Fonction appelée lors de la signalisation
+    signalAction.sa_handler = &generalSignalHandler;
+    // Interception de SIGTEM uniquement
+
+    if (sigaction(SIGTERM, &signalAction, NULL) == -1) // si erreur
+        std::cerr << "Impossible d'intercepter SIGTERM !" << std::endl;
+
+
 	sched_getparam(PID,&schedparam);
 	schedparam.sched_priority = 1;
 	sched_setscheduler(PID,SCHED_FIFO,&schedparam);
 
-	pinMode(2,OUTPUT);
-	pinMode(3,OUTPUT);
-
-	while(1)//i<100000)
+	initPID_Thread(18);
+	initSerial(900, 27, 17);
+	usleep(100000);
+	//wiringPiSetupGpio();
+	//pinMode(27,OUTPUT);
+	while(1)
 	{
-		i=0;
-		digitalWrite(2, HIGH);
-		//my_delay(240);
-		/*while(i<120)
-			i++;
-		i=0;
+		i_measure = readSpeed();
+
+		/*usleep(25000);
+		digitalWrite(27, 0);
+		usleep(25000);
+		digitalWrite(27, 1);
 		*/
-		usleep(250);
-		digitalWrite(2, LOW);
-		usleep(250);
-		//my_delay(240);
-		while(i<120)
-			i++;
+
+		//i_measure = 100;
+		//std::cout<< "mesure = " <<i_measure<<std::endl;
+		usleep(5000000);
 	}
-
-
 	return 0;
 }
+
 
 
