@@ -16,12 +16,10 @@
 #include <signal.h>
 
 using namespace std;
-int i_measure;
 
 void terminerProgramme()
 {
 	std::cout<< "termine"<<std::endl;
-
 }
 
 // Pourrait intercepter et gérer tous les signaux, selon la configuration
@@ -73,8 +71,8 @@ int main()
 	//pinMode(27,OUTPUT);
 	while(1)
 	{
-		i_measure = readSpeed();
-		usleep(5000000);
+		//i_measure = readSpeed();
+		//usleep(5000000);
 	}
 	return 0;
 }

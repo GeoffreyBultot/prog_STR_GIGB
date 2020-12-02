@@ -15,6 +15,7 @@
 #include "pthread.h"
 
 #include "softPwm.h"
+#include "serial.hpp"
 
 
 #define MAX_SPEED 1024	//Vitesse max
@@ -42,10 +43,10 @@ void* thread_PID(void*);
 pthread_attr_t threadPID_attr;
 pthread_t threadPID_t;
 int ipin_MLI;
+int i_measure;
 
 int initPID_Thread(int pin_MLI)
 {
-
 	pinMode(pin_MLI, PWM_OUTPUT );
 	digitalWrite(pin_MLI, LOW);
 	ipin_MLI = pin_MLI;
@@ -67,12 +68,14 @@ int initPID_Thread(int pin_MLI)
 
 void Calcul()
 {
+	i_measure = readSpeed();
 	E=i_measure-C;	//Calcul de l'erreur
-	//E*=5;
+
 	u = u + B0*E + B1*E_before + B2*E2_before; //Calcul de la commande
 
 	E2_before = E_before;		//définition de l'erreur avant la précédente
 	E_before = E;				//définition de l'erreur précédente
+	//TODO: uncomment to start PWM
 	//pwmWrite(ipin_MLI, u);
 }
 
@@ -83,8 +86,7 @@ void* thread_PID(void* x)
     pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
 	while(1)
 	{
-		//std::cout<<"erreur= " << i_measure <<std::endl;
-		//usleep(10000000);
+
 		Calcul();
 		usleep(H*1000);
 		pthread_testcancel();
