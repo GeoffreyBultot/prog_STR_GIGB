@@ -8,26 +8,26 @@
 
 int iTxPin;
 int iRxPin;
-int half_period = 0;
+
+int half_nanoPeriod = 0;
 unsigned char receptionArray[C_N_BYTES];
+int getSpeedFromCOM();
+void serialNanoSleep(int nanoSec);
 
 void initSerial(int baudrate, unsigned char rxPin, unsigned char txPin)
 {
 
 	wiringPiSetupGpio();
-	half_period = (baudrate/C_N_BITS);
+	//half_period = (baudrate/C_N_BITS);
+	half_nanoPeriod = (int) (1000000000.0/( (float)baudrate * (float)C_N_BITS * 2.0));
 
-	pinMode(C_RX_PIN,INPUT);
-	//pullUpDnControl(C_RX_PIN, PUD_UP);
-	//pullUpDnControl(C_TX_PIN, PUD_UP);
-
-	pinMode(C_TX_PIN,OUTPUT);
 	iRxPin = rxPin;
 	iTxPin = txPin;
-	half_period = (baudrate/C_N_BITS);
 
-	std::cout<<"RX: "<<iRxPin << "   TX : " << iTxPin << std::endl;
-	digitalWrite(C_TX_PIN, HIGH);
+	pinMode(iRxPin,INPUT);
+	pinMode(iTxPin,OUTPUT);
+
+	digitalWrite(iTxPin, HIGH);
 }
 
 int readSpeed()
@@ -37,33 +37,91 @@ int readSpeed()
 	int currentByte = 0;
 	bool currentbit;
 	//Low -> StartBit
-	digitalWrite(C_TX_PIN, LOW);
-	//Waiting com from Nucle
-	usleep(1200);
-	while(digitalRead(C_RX_PIN) != LOW);
+	digitalWrite(iTxPin, LOW);
+	//Waiting com from Nucleo
+
+
+
+	int start_timeout = time(NULL);
+	//TODO TEST TIMEOUT
+	while(digitalRead(iRxPin) != LOW)
+	{
+		if(difftime(time(NULL), start_timeout >= 1))
+		{
+			std::cout<<"NUCLEO NOT RESPONDING"<<std::endl;
+			return -1;
+		}
+	}
+
+
+
+	std::cout << "Réception : ";
 	for(i=0;i<C_N_BYTES;i++)
 	{
 		currentByte = 0;
 		for(j=0;j<C_N_BITS;j++)
 		{
 			//HIGH
-			digitalWrite(C_TX_PIN, HIGH);
-			usleep(25000);
-			//usleep(half_period * 1000);
+			digitalWrite(iTxPin, HIGH);
+			serialNanoSleep(half_nanoPeriod);
+
 			//LOW
-			digitalWrite(C_TX_PIN, LOW);
-			currentbit = digitalRead(C_RX_PIN);
+			digitalWrite(iTxPin, LOW);
+			currentbit = digitalRead(iRxPin);
+
 			//FALLING => Reading
 			currentByte |= currentbit<<j;
-			usleep(25000);
-			//usleep(half_period * 1000);
 
+			serialNanoSleep(half_nanoPeriod);
 		}
 		receptionArray[i] = currentByte;
-		std::cout<<"byte numéro " << i << ": " << currentByte<<std::endl;
+		std::cout << currentByte << "\ŧ";
+	}
+	std::cout<<std::endl;
+
+	digitalWrite(iTxPin, HIGH);
+
+	return getSpeedFromCOM();
+}
+
+
+//TODO TEST this function
+int getSpeedFromCOM()
+{
+	int i;
+	unsigned char checksum = 0;
+	checksum = C_START_BYTE;
+	for(i = C_POS_FIRST_DATA ; i< C_POS_CHECKSUM; i++)
+	{
+		checksum += receptionArray[i];
+		//ChecksumCalculation
 	}
 
-	digitalWrite(C_TX_PIN, HIGH);
+	checksum = C_STOP_BYTE;
 
-	return(receptionArray[0]);
+	if(checksum == receptionArray[C_POS_CHECKSUM])
+	{
+		//TODO: add speed calculation
+		return receptionArray[C_POS_FIRST_DATA];
+	}
+	else return -1;
+
 }
+
+void serialNanoSleep(int nanoSec)
+{
+	struct timespec deadline;
+	clock_gettime(CLOCK_MONOTONIC, &deadline);
+	deadline.tv_nsec += nanoSec;
+
+	if( deadline.tv_nsec >= 1000000000)
+	{
+		deadline.tv_nsec -= 1000000000;
+		deadline.tv_sec++;
+	}
+
+	clock_nanosleep( CLOCK_MONOTONIC, TIMER_ABSTIME, &deadline, NULL);
+}
+
+
+

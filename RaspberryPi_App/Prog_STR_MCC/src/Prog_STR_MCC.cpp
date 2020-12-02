@@ -18,23 +18,6 @@
 using namespace std;
 int i_measure;
 
-void my_delay(int del)
-{
-	struct timespec deadline;
-	clock_gettime(CLOCK_MONOTONIC, &deadline);
-	deadline.tv_nsec += del*1000;
-
-	if( deadline.tv_nsec >= 1000000000)
-	{
-		deadline.tv_nsec -= 1000000000;
-		deadline.tv_sec++;
-	}
-
-	clock_nanosleep( CLOCK_MONOTONIC, TIMER_ABSTIME, &deadline, NULL);
-}
-
-
-
 void terminerProgramme()
 {
 	std::cout<< "termine"<<std::endl;
@@ -91,15 +74,6 @@ int main()
 	while(1)
 	{
 		i_measure = readSpeed();
-
-		/*usleep(25000);
-		digitalWrite(27, 0);
-		usleep(25000);
-		digitalWrite(27, 1);
-		*/
-
-		//i_measure = 100;
-		//std::cout<< "mesure = " <<i_measure<<std::endl;
 		usleep(5000000);
 	}
 	return 0;
