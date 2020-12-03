@@ -16,29 +16,10 @@
 #include <signal.h>
 
 using namespace std;
-int i_measure;
-
-void my_delay(int del)
-{
-	struct timespec deadline;
-	clock_gettime(CLOCK_MONOTONIC, &deadline);
-	deadline.tv_nsec += del*1000;
-
-	if( deadline.tv_nsec >= 1000000000)
-	{
-		deadline.tv_nsec -= 1000000000;
-		deadline.tv_sec++;
-	}
-
-	clock_nanosleep( CLOCK_MONOTONIC, TIMER_ABSTIME, &deadline, NULL);
-}
-
-
 
 void terminerProgramme()
 {
 	std::cout<< "termine"<<std::endl;
-
 }
 
 // Pourrait intercepter et gérer tous les signaux, selon la configuration
@@ -58,7 +39,7 @@ void generalSignalHandler(int signal)
 
 int main()
 {
-	int i = 0;
+	//int i = 0;
 	int PID;
 	sched_param schedparam;
 	PID = getpid();
@@ -75,32 +56,28 @@ int main()
     signalAction.sa_handler = &generalSignalHandler;
     // Interception de SIGTEM uniquement
 
-    if (sigaction(SIGTERM, &signalAction, NULL) == -1) // si erreur
+    if (sigaction(SIGTERM, &signalAction, NULL) == -1){ // si erreur
         std::cerr << "Impossible d'intercepter SIGTERM !" << std::endl;
+    }
 
 
 	sched_getparam(PID,&schedparam);
 	schedparam.sched_priority = 1;
 	sched_setscheduler(PID,SCHED_FIFO,&schedparam);
 
+	initSerial(4800, 17, 27);
+	usleep(10);
 	initPID_Thread(18);
-	initSerial(900, 27, 17);
-	usleep(100000);
+
 	//wiringPiSetupGpio();
 	//pinMode(27,OUTPUT);
 	while(1)
 	{
-		i_measure = readSpeed();
-
-		/*usleep(25000);
-		digitalWrite(27, 0);
-		usleep(25000);
-		digitalWrite(27, 1);
+		/*
+		int i_measure = readSpeed();
+		std::cout << "[DEBUG] i_mesure : " << i_measure << std::endl;
+		usleep(2000000);
 		*/
-
-		//i_measure = 100;
-		//std::cout<< "mesure = " <<i_measure<<std::endl;
-		usleep(5000000);
 	}
 	return 0;
 }
