@@ -39,7 +39,7 @@ void generalSignalHandler(int signal)
 
 int main()
 {
-	int i = 0;
+	//int i = 0;
 	int PID;
 	sched_param schedparam;
 	PID = getpid();
@@ -56,23 +56,33 @@ int main()
     signalAction.sa_handler = &generalSignalHandler;
     // Interception de SIGTEM uniquement
 
-    if (sigaction(SIGTERM, &signalAction, NULL) == -1) // si erreur
+    if (sigaction(SIGTERM, &signalAction, NULL) == -1){ // si erreur
         std::cerr << "Impossible d'intercepter SIGTERM !" << std::endl;
+    }
 
 
 	sched_getparam(PID,&schedparam);
 	schedparam.sched_priority = 1;
 	sched_setscheduler(PID,SCHED_FIFO,&schedparam);
 
+	initSerial(4800, 17, 27);
+	usleep(10);
 	initPID_Thread(18);
-	initSerial(900, 27, 17);
-	usleep(100000);
+
 	//wiringPiSetupGpio();
 	//pinMode(27,OUTPUT);
 	while(1)
 	{
+<<<<<<< HEAD
 		//i_measure = readSpeed();
 		//usleep(5000000);
+=======
+		/*
+		int i_measure = readSpeed();
+		std::cout << "[DEBUG] i_mesure : " << i_measure << std::endl;
+		usleep(2000000);
+		*/
+>>>>>>> master
 	}
 	return 0;
 }
