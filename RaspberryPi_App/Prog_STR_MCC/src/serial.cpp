@@ -16,10 +16,7 @@ void serialNanoSleep(int nanoSec);
 
 void initSerial(int baudrate, unsigned char rxPin, unsigned char txPin)
 {
-	wiringPiSetupGpio();
-	//half_period = (baudrate/C_N_BITS);
 	half_nanoPeriod = (int) (1000000000.0/( (float)baudrate * (float)C_N_BITS * 2.0));
-
 	std::cout << "[DEBUG] Half_nanoPeriod : " << half_nanoPeriod << std::endl;
 	iRxPin = rxPin;
 	iTxPin = txPin;

@@ -14,12 +14,12 @@
 #include <wiringPi.h>
 #include "time.h"
 #include <signal.h>
-
-using namespace std;
+#include "MODULES_DEFINE.hpp"
 
 void terminerProgramme()
 {
 	std::cout<< "termine"<<std::endl;
+
 }
 
 // Pourrait intercepter et gérer tous les signaux, selon la configuration
@@ -37,41 +37,49 @@ void generalSignalHandler(int signal)
         std::cerr << "Signal non-géré" << std::endl;
 }
 
+void initSignalHandler()
+{
+	// - - - - - Mise en place du handler de signal - - - - -
+
+	// Création et initialisation de la structure POSIX
+	struct sigaction signalAction;
+	sigemptyset(&signalAction.sa_mask);
+	signalAction.sa_flags = 0;
+	// Fonction appelée lors de la signalisation
+	signalAction.sa_handler = &generalSignalHandler;
+	// Interception de SIGTEM uniquement
+
+	if (sigaction(SIGTERM, &signalAction, NULL) == -1){ // si erreur
+		std::cerr << "Impossible d'intercepter SIGTERM !" << std::endl;
+	}
+}
+
 int main()
 {
 	//int i = 0;
 	int PID;
 	sched_param schedparam;
 	PID = getpid();
-	cout << "PROG STR MCC PID = "<< PID << endl; // prints Signal carre 500µs
 
-	wiringPiSetupGpio();
-	// - - - - - Mise en place du handler de signal - - - - -
-
-    // Création et initialisation de la structure POSIX
-    struct sigaction signalAction;
-    sigemptyset(&signalAction.sa_mask);
-    signalAction.sa_flags = 0;
-    // Fonction appelée lors de la signalisation
-    signalAction.sa_handler = &generalSignalHandler;
-    // Interception de SIGTEM uniquement
-
-    if (sigaction(SIGTERM, &signalAction, NULL) == -1){ // si erreur
-        std::cerr << "Impossible d'intercepter SIGTERM !" << std::endl;
-    }
-
-
+	/*HIGH PRIORITY AND SCHED FIFO*/
 	sched_getparam(PID,&schedparam);
 	schedparam.sched_priority = 1;
 	sched_setscheduler(PID,SCHED_FIFO,&schedparam);
 
-	initSerial(4800, 17, 27);
-	usleep(10);
-	initPID_Thread(18);
+	std::cout << "PROG STR MCC PID = "<< PID << std::endl;
+	wiringPiSetupGpio(); //Init wiringPi
+	std::cout << "[INFO] WiringPi initialized"<< std::endl;
+	initSignalHandler();
+	std::cout << "[INFO] SIG HANDLER initialized"<< std::endl;
+	initSerial(C_BAUDRATE, C_PIN_RPI_RX, C_PIN_RPI_TX);
+	std::cout << "[INFO] SERIAL initialized"<< std::endl;
+	int err = initPID_Thread(C_PIN_MLI);
+	if(err == 0)
+		std::cout << "[INFO] THREAD REGULATION initialized"<< std::endl;
+	else
+		std::cout << "[INFO] THREAD REGULATION not started ERROR VALUE: "<< err << std::endl;
 
-	//wiringPiSetupGpio();
-	//pinMode(27,OUTPUT);
-	while(1)
+	while(1)//loop forever
 	{
 		/*
 		int i_measure = readSpeed();
