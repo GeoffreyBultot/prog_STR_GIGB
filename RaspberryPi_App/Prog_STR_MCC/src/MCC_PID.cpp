@@ -47,11 +47,8 @@ int i_measure;
 
 int initPID_Thread(int pin_MLI)
 {
-<<<<<<< HEAD
-	pinMode(pin_MLI, PWM_OUTPUT );
-=======
 	pinMode(pin_MLI, PWM_OUTPUT);
->>>>>>> master
+
 	digitalWrite(pin_MLI, LOW);
 	ipin_MLI = pin_MLI;
 
@@ -73,10 +70,7 @@ int initPID_Thread(int pin_MLI)
 void Calcul()
 {
 	i_measure = readSpeed();
-<<<<<<< HEAD
-=======
 	//std::cout << osef
->>>>>>> master
 	E=i_measure-C;	//Calcul de l'erreur
 
 	u = u + B0*E + B1*E_before + B2*E2_before; //Calcul de la commande
@@ -93,10 +87,7 @@ void* thread_PID(void* x)
     pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
 	while(1)
 	{
-<<<<<<< HEAD
 
-=======
->>>>>>> master
 		Calcul();
 		usleep(H*10000);
 		pthread_testcancel();

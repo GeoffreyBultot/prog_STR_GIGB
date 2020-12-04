@@ -73,16 +73,11 @@ int main()
 	//pinMode(27,OUTPUT);
 	while(1)
 	{
-<<<<<<< HEAD
-		//i_measure = readSpeed();
-		//usleep(5000000);
-=======
 		/*
 		int i_measure = readSpeed();
 		std::cout << "[DEBUG] i_mesure : " << i_measure << std::endl;
 		usleep(2000000);
 		*/
->>>>>>> master
 	}
 	return 0;
 }
