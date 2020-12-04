@@ -5,7 +5,7 @@
 #include <iostream>
 #include "unistd.h"
 #include <wiringPi.h>
-
+#include "MODULES_DEFINE.hpp"
 int iTxPin;
 int iRxPin;
 
@@ -28,88 +28,93 @@ void initSerial(int baudrate, unsigned char rxPin, unsigned char txPin)
 	usleep(1000000);
 }
 
-int readSpeed()
+/*
+ * @brief function
+ * return register of occured errors
+ * params */
+int readSpeed(float* speed)
 {
 	int i;
 	int j;
 	int currentByte = 0;
 	bool currentbit;
+
+	int ErrorReg = 0;
 	//TODO ADD FALLING EDGE DETECTION
-	/*if(digitalRead(iRxPin) != HIGH)
-		return -1;
-	 */
-	//Low -> StartBit
-	digitalWrite(iTxPin, LOW);
-	//Waiting com from Nucleo
-
-	int start_timeout = time(NULL);
-	//TODO TEST TIMEOUT
-
-	//TODO TEST TIMEOUT
-	while(digitalRead(iRxPin) != LOW)
+	if(digitalRead(iRxPin) != HIGH)
 	{
-		if(difftime(time(NULL), start_timeout) >= 1)
-		{
-			std::cout<<"NUCLEO NOT RESPONDING"<<std::endl;
-			return -1;
-		}
+		std::cout<<"[DEBUG] PAS DE NUCLEO DETECTE" <<std::endl;
+		ErrorReg = 2; //ERROR : pas de nucleo detecte
 	}
-
-
-
-	std::cout << "Réception : ";
-
-	for(i=0;i<C_N_BYTES_TOT;i++)
+	else
 	{
-		currentByte = 0;
-		for(j=0;j<C_N_BITS;j++)
+		//Low -> StartBit
+		digitalWrite(iTxPin, LOW);
+		//Waiting com from Nucleo
+
+		int start_timeout = time(NULL);
+
+		while(digitalRead(iRxPin) != LOW){
+			if(difftime(time(NULL), start_timeout) >= 1){
+				std::cout<<"[DEBUG] NUCLEO DETECTED BUT NOT RESPONDING"<<std::endl;
+				ErrorReg = 3;
+			}
+		}
+
+		if(ErrorReg == 0)
 		{
-			//HIGH
+			std::cout << "Réception : "; //TODO JUST TO DEBUG
+			for(i=0;i<C_N_BYTES_TOT;i++){
+				currentByte = 0;
+				for(j=0;j<C_N_BITS;j++){
+					//HIGH
+					digitalWrite(iTxPin, HIGH);
+					serialNanoSleep(half_nanoPeriod);
+					//LOW
+					digitalWrite(iTxPin, LOW);
+					serialNanoSleep(half_nanoPeriod);
+					currentbit = digitalRead(iRxPin);
+					//FALLING => Reading
+					currentByte |= currentbit<<j;
+				}
+				receptionArray[i] = currentByte;
+				std::cout << currentByte << "\t"; //TODO JUST TO DEBUG
+			}
+			std::cout<<std::endl; //TODO JUST TO DEBUG
+
 			digitalWrite(iTxPin, HIGH);
-			serialNanoSleep(half_nanoPeriod);
 
-			//LOW
-			digitalWrite(iTxPin, LOW);
-			currentbit = digitalRead(iRxPin);
 
-			//FALLING => Reading
-			currentByte |= currentbit<<j;
+			if( (receptionArray[C_POS_START_BYTE] == C_START_BYTE) && (receptionArray[C_POS_STOP_BYTE] == C_STOP_BYTE) )
+			{
+				unsigned char checksum = 0;
+				checksum = C_START_BYTE;
+				for(i = C_POS_FIRST_DATA ; i< C_POS_CHECKSUM; i++){
+					checksum += receptionArray[i];
+				}
+				checksum += C_STOP_BYTE;
 
-			serialNanoSleep(half_nanoPeriod);
+				if(checksum == receptionArray[C_POS_CHECKSUM])
+				{
+					//TODO: add speed calculation
+					int temp_speed = 0;
+					for(int j = 0 ; j < C_N_BYTES_DATA ; j ++)
+					{
+						temp_speed += receptionArray[j+C_POS_FIRST_DATA] << 8*j; //Mise des bytes dans un int (à valider si on fait comme ça)
+					}
+					(*speed) = ((float)temp_speed) * C_CONSTANT_SPEED_CALCULATION;
+
+				}
+				else{ErrorReg = 4;}
+			}
+			else{ErrorReg = 5;}
+			//return getSpeedFromCOM();
 		}
-		receptionArray[i] = currentByte;
-		std::cout << currentByte << "\t";
 	}
-	std::cout<<std::endl;
-
-	digitalWrite(iTxPin, HIGH);
-
-	return getSpeedFromCOM();
+	return ErrorReg;
 }
 
 
-//TODO TEST this function
-int getSpeedFromCOM()
-{
-	int i;
-	unsigned char checksum = 0;
-	checksum = C_START_BYTE;
-	for(i = C_POS_FIRST_DATA ; i< C_POS_CHECKSUM; i++)
-	{
-		checksum += receptionArray[i];
-		//ChecksumCalculation
-	}
-
-	checksum += C_STOP_BYTE;
-
-	if(checksum == receptionArray[C_POS_CHECKSUM])
-	{
-		//TODO: add speed calculation
-		return receptionArray[C_POS_FIRST_DATA];
-	}
-	else return -1;
-
-}
 
 void serialNanoSleep(int nanoSec)
 {

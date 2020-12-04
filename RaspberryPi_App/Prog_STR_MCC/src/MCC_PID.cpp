@@ -16,7 +16,7 @@
 
 #include "softPwm.h"
 #include "serial.hpp"
-
+#include "MODULES_DEFINE.hpp"
 
 
 /* DEFINES */
@@ -47,13 +47,15 @@ double E_before = 0;	//Erreur précedente
 double E2_before = 0;	//Erreur avant la précédente
 double M = 0;			//Mesure
 
+T_ROTATION_SENS CurrentSensRotation = E_SENS_HORAIRE;
+
 /* PROTOTYPES*/
 void* thread_PID(void*);
 
 pthread_attr_t threadPID_attr;
 pthread_t threadPID_t;
 int ipin_MLI;
-int i_measure;
+float i_measure;
 
 int initPID_Thread(int pin_MLI)
 {
@@ -62,7 +64,12 @@ int initPID_Thread(int pin_MLI)
 	err = pthread_create(&threadPID_t, &threadPID_attr, thread_PID, NULL);
 	if( err ==0)
 	{
+		pinMode(C_PIN_RELAY_DIGITAL, OUTPUT);
+		pinMode(C_PIN_RELAY_ANALOG, OUTPUT);
+		pinMode(C_PIN_SENS_ROT1, OUTPUT);
+		pinMode(C_PIN_SENS_ROT2, OUTPUT);
 		pinMode(ipin_MLI, PWM_OUTPUT);
+
 		pwmSetMode(PWM_MODE_BAL);
 		pwmSetRange(1024);
 		pwmSetClock(4094);
@@ -71,10 +78,43 @@ int initPID_Thread(int pin_MLI)
 	return err;
 }
 
+void setSensRotation(T_ROTATION_SENS sensRotation)
+{
+	if(sensRotation != CurrentSensRotation)
+	{
+		/*TODO: (voir si c'est la bonne méthode) l'idee ici c est de s assurer que le moteur est bien
+		 * arrete avant de changer de sens de rotation pour ne pas endommager l electronique*/
+		int temp_c = C;
+		C = 0; //Mise de la consigne à 0
+		while(i_measure != 0); //Attendre l'arrête du moteur
+		CurrentSensRotation = sensRotation;//Sauvegarde du nouveau sens de rotation
+
+		//Activation des pins
+		if(CurrentSensRotation == E_SENS_HORAIRE)
+		{
+			digitalWrite(C_PIN_SENS_ROT1, HIGH);
+			digitalWrite(C_PIN_SENS_ROT2, LOW);
+		}
+		else if(CurrentSensRotation == E_SENS_ANTI_HORAIRE)
+		{
+			digitalWrite(C_PIN_SENS_ROT1, LOW);
+			digitalWrite(C_PIN_SENS_ROT2, HIGH);
+		}
+
+		C = temp_c; //Faire tourner à la même vitesse qu'avant dans l autre sens
+	}
+}
+
+void setConsigne(int consigne)
+{
+	//todo mutex
+	C = consigne;
+	//mutex
+}
 
 void Calcul()
 {
-	i_measure = readSpeed();
+	 int errors = readSpeed(&i_measure);
 	//std::cout << osef
 	E=i_measure-C;	//Calcul de l'erreur
 
@@ -101,7 +141,6 @@ void* thread_PID(void* x)
 
 int stopPID_Regulation()
 {
-
 	pthread_cancel(threadPID_t);
 	pthread_join(threadPID_t, NULL);
 	pwmWrite(ipin_MLI, 0);

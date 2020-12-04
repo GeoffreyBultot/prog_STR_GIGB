@@ -79,6 +79,9 @@ int main()
 	else
 		std::cout << "[INFO] THREAD REGULATION not started ERROR VALUE: "<< err << std::endl;
 
+	setSensRotation(E_SENS_HORAIRE);
+	setConsigne(30);
+
 	while(1)//loop forever
 	{
 		/*

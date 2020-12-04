@@ -4,7 +4,8 @@
 
 /*SERIAL BAUDRATE DEFINITION*/
 #define C_BAUDRATE 				4800
-
+/*CONSTANT TO CALCUL SPEED*/
+#define C_CONSTANT_SPEED_CALCULATION 3 //speed = count/(thisconstant)
 /*PIN DEFINTION*/
 
 #define C_PIN_RPI_RX			17
