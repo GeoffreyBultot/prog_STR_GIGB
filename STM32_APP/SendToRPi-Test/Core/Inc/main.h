@@ -74,6 +74,12 @@ void Error_Handler(void);
 #define RX_Pin GPIO_PIN_2
 #define RX_GPIO_Port GPIOB
 #define RX_EXTI_IRQn EXTI2_3_IRQn
+#define Hall_A_Pin GPIO_PIN_11
+#define Hall_A_GPIO_Port GPIOB
+#define Hall_A_EXTI_IRQn EXTI4_15_IRQn
+#define Hall_B_Pin GPIO_PIN_12
+#define Hall_B_GPIO_Port GPIOB
+#define Hall_B_EXTI_IRQn EXTI4_15_IRQn
 #define TMS_Pin GPIO_PIN_13
 #define TMS_GPIO_Port GPIOA
 #define TCK_Pin GPIO_PIN_14

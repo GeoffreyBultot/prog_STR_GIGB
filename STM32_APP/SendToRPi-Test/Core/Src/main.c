@@ -33,8 +33,8 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define C_N_BITS 			(8)
-#define C_N_BYTES_DATA 		(2)
-#define C_N_BYTES_TOT		(C_N_BYTES_DATA+5)	// 1 byte start + (2) de data + 1 byte d'erreur + 1 byte checksum + 1 byte stop = 7
+#define C_N_BYTES_DATA 		(sizeof(int))
+#define C_N_BYTES_TOT		(C_N_BYTES_DATA+4)	// 1 byte start + (4) de data + 1 byte d'erreur + 1 byte checksum + 1 byte stop = 8
 
 #define C_POS_START_BYTE 	(0)
 #define C_POS_FIRST_DATA 	(1)
@@ -43,6 +43,9 @@
 
 #define C_START_BYTE		(0xF4)
 #define C_STOP_BYTE			(0xAA)
+
+#define CONVERSION_PULSE_TO_RPM 83.33	// (60/(360*0.002)) \approx 83.33
+#define CONVERSION_TICKS_TO_NS	83.33	// 1/12MEG \approx 83.33ns
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -51,6 +54,8 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+TIM_HandleTypeDef htim3;
+
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
@@ -63,12 +68,18 @@ GPIO_InitTypeDef GPIO_InitStruct_RX =	{
 												.Mode = GPIO_MODE_IT_FALLING,
 												.Pull = GPIO_NOPULL
 										};
+int counter_Hall_A = 0;
+int counter_Hall_A_to_send = 0;
+int delta_time_between_HA_HB_ns = 0;
+unsigned int ticks_counter = 0;
+int speed_RPM = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
+static void MX_TIM3_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -94,6 +105,7 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
+  // init bytes to send
   for(int i=0; i<C_N_BYTES_TOT; i++){
 	  bToSend[i] = 0x00;
   }
@@ -111,7 +123,10 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART2_UART_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
+  // init timer
+  HAL_TIM_Base_Start_IT(&htim3);
   // done in gpio init so config in the .ioc
   //HAL_GPIO_WritePin(TX_GPIO_Port, TX_Pin, GPIO_PIN_SET);
   /* USER CODE END 2 */
@@ -121,6 +136,11 @@ int main(void)
   while (1)
   {
 	// Lecture des capteurs à effet hall
+	/*
+	if(delta_time_Hall_A > delta_time_Hall_B){
+		direction_of_rotation = HORAIRE;
+	}
+	*/
 
 	// Stockage dans des variables différentes de celles pour la comm
 	// pour éviter les accès concurrents
@@ -172,6 +192,51 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief TIM3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM3_Init(void)
+{
+
+  /* USER CODE BEGIN TIM3_Init 0 */
+
+  /* USER CODE END TIM3_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM3_Init 1 */
+
+  /* USER CODE END TIM3_Init 1 */
+  htim3.Instance = TIM3;
+  htim3.Init.Prescaler = 4;
+  htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim3.Init.Period = 65535;
+  htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim3, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM3_Init 2 */
+
+  /* USER CODE END TIM3_Init 2 */
+
 }
 
 /**
@@ -266,63 +331,125 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(RX_GPIO_Port, &GPIO_InitStruct);
 
+  /*Configure GPIO pins : Hall_A_Pin Hall_B_Pin */
+  GPIO_InitStruct.Pin = Hall_A_Pin|Hall_B_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
   /* EXTI interrupt init*/
   HAL_NVIC_SetPriority(EXTI2_3_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(EXTI2_3_IRQn);
 
-  HAL_NVIC_SetPriority(EXTI4_15_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(EXTI4_15_IRQn, 2, 0);
   HAL_NVIC_EnableIRQ(EXTI4_15_IRQn);
 
 }
 
 /* USER CODE BEGIN 4 */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
-	HAL_GPIO_WritePin(DEBUG_INT_GPIO_Port, DEBUG_INT_Pin, GPIO_PIN_SET);
+	switch(GPIO_Pin){
+		case RX_Pin:
+			// Debug Interrupt Pin SET to see when we enter in the callback function
+			HAL_GPIO_WritePin(DEBUG_INT_GPIO_Port, DEBUG_INT_Pin, GPIO_PIN_SET);
 
-	if(!is_sending){ 	// en falling edge, premier
-		// set pin on rising edge
-		GPIO_InitStruct_RX.Mode = GPIO_MODE_IT_RISING;
-		HAL_GPIO_Init(RX_GPIO_Port, &GPIO_InitStruct_RX);
+			if(!is_sending){ // was in falling edge detection at first
+				/* At this point RPi is waiting for us to reset our TX
+				 * So can take the time we need (<timeout) to prep the bytes to send before responding
+				 */
+				//bToSend[C_POS_CHECKSUM] = checksum;
+				// set is_sending flag
+				is_sending = 1; // NB : hall sensor counting has stopped, since is_sending is true
 
-		// Debug LED
-		HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
 
-		// Compteurs à 0
-		tx_bit_sending = 0;
-		tx_byte_sending = 0;
+				// set pin on rising edge
+				GPIO_InitStruct_RX.Mode = GPIO_MODE_IT_RISING;
+				HAL_GPIO_Init(RX_GPIO_Port, &GPIO_InitStruct_RX);
 
-		is_sending = 1;
+				// Debug LED set : rising edge mode notifier
+				HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
 
-		// init pin on reset
-		HAL_GPIO_WritePin(TX_GPIO_Port, TX_Pin, GPIO_PIN_RESET);
-	}
-	else{
-		if(tx_byte_sending == C_N_BYTES_TOT)
-		{
-			// init pin on reset
-			HAL_GPIO_WritePin(TX_GPIO_Port, TX_Pin, GPIO_PIN_SET);
-
-			// set pin on rising edge
-			GPIO_InitStruct_RX.Mode = GPIO_MODE_IT_FALLING;
-			HAL_GPIO_Init(RX_GPIO_Port, &GPIO_InitStruct_RX);
-
-			// Debug LED
-			HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
-
-			is_sending = 0;
-		}
-		else{
-			HAL_GPIO_WritePin(TX_GPIO_Port, TX_Pin, (bToSend[tx_byte_sending] & (1<<tx_bit_sending)));
-			tx_bit_sending++;
-			if(tx_bit_sending == 8){
+				// Reset bit & byte counters
 				tx_bit_sending = 0;
-				tx_byte_sending++;
-			}
-		}
-	}
-	HAL_GPIO_WritePin(DEBUG_INT_GPIO_Port, DEBUG_INT_Pin, GPIO_PIN_RESET);
-}
+				tx_byte_sending = 0;
 
+				// compute RPM speed
+				speed_RPM = delta_time_between_HA_HB_ns/counter_Hall_A*1;//CONVERSION_PULSE_TO_RPM;
+
+				// prep package to send
+				for(int i = 0; i < C_N_BYTES_DATA; i++){
+					bToSend[C_POS_FIRST_DATA+i] = ((speed_RPM >> (i*8)) & 0xFF); //LSB First
+					//checksum += bToSend[C_POS_FIRST_DATA+i];
+					//bToSend[C_POS_FIRST_DATA+i] = ((counter_Hall_A >> (i*8)) & 0xFF); //LSB First
+				}
+
+				// tx pin reset to tell RPi to start its clock
+				HAL_GPIO_WritePin(TX_GPIO_Port, TX_Pin, GPIO_PIN_RESET);
+			}
+			else{	// is sending data on rising edge
+				if(tx_byte_sending == C_N_BYTES_TOT)	// last byte+1 : end communication
+				{
+					// clear is_sending flag first
+					is_sending = 0;
+
+					// tx pin set for ending communication
+					HAL_GPIO_WritePin(TX_GPIO_Port, TX_Pin, GPIO_PIN_SET);
+
+					// set pin on falling edge again
+					GPIO_InitStruct_RX.Mode = GPIO_MODE_IT_FALLING;
+					HAL_GPIO_Init(RX_GPIO_Port, &GPIO_InitStruct_RX);
+
+					// Debug LED reset : falling edge mode notifier
+					HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+
+					// prep for start counting from 0 at the end of the communication
+					//counter_Hall_A = 0;
+				}
+				else{
+					HAL_GPIO_WritePin(TX_GPIO_Port, TX_Pin, (bToSend[tx_byte_sending] & (1<<tx_bit_sending)));
+					tx_bit_sending++;
+					if(tx_bit_sending == 8){
+						tx_bit_sending = 0;
+						tx_byte_sending++;
+					}
+				}
+			}
+			HAL_GPIO_WritePin(DEBUG_INT_GPIO_Port, DEBUG_INT_Pin, GPIO_PIN_RESET);
+			break;
+
+		case Hall_A_Pin:
+			if(!is_sending){
+				// to get speed
+				counter_Hall_A++;
+				HAL_TIM_Base_Start(&htim3);
+				// to get direction of rotation
+				//time_Hall_A = time(NULL);
+				//delta_time_Hall_A = difftime(time_Hall_A, time_Hall_B);
+			}
+			break;
+
+		case Hall_B_Pin:
+			if(!is_sending){
+				HAL_TIM_Base_Stop(&htim3);
+				ticks_counter = htim3.Instance->CNT;
+				delta_time_between_HA_HB_ns += ticks_counter;// * CONVERSION_TICKS_TO_NS;
+				// just to get the direction of rotation
+				//time_Hall_B = time(NULL);
+				//delta_time_Hall_B = difftime(time_Hall_B, time_Hall_A);
+			}
+			break;
+
+	}
+}
+/*
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
+	// 2 ms period
+	if(htim == &htim3){
+		counter_Hall_A_to_send = counter_Hall_A;
+		counter_Hall_A = 0;
+	}
+}
+*/
 /* USER CODE END 4 */
 
 /**

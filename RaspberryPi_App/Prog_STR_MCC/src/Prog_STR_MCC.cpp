@@ -18,8 +18,9 @@
 
 void terminerProgramme()
 {
+	stopPID_Regulation();
 	std::cout<< "termine"<<std::endl;
-
+	exit(0);
 }
 
 // Pourrait intercepter et gérer tous les signaux, selon la configuration
@@ -73,6 +74,7 @@ int main()
 	std::cout << "[INFO] SIG HANDLER initialized"<< std::endl;
 	initSerial(C_BAUDRATE, C_PIN_RPI_RX, C_PIN_RPI_TX);
 	std::cout << "[INFO] SERIAL initialized"<< std::endl;
+
 	int err = initPID_Thread(C_PIN_MLI);
 	if(err == 0)
 		std::cout << "[INFO] THREAD REGULATION initialized"<< std::endl;
@@ -81,6 +83,10 @@ int main()
 
 	setSensRotation(E_SENS_HORAIRE);
 	setConsigne(30);
+
+	// SIGTERM est jamais intercepté ! donc pour terminer le pgrm proprement en attendant...
+	sleep(5);
+	terminerProgramme();
 
 	while(1)//loop forever
 	{

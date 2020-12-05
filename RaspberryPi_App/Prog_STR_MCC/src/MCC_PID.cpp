@@ -47,7 +47,7 @@ double E_before = 0;	//Erreur précedente
 double E2_before = 0;	//Erreur avant la précédente
 double M = 0;			//Mesure
 
-T_ROTATION_SENS CurrentSensRotation = E_SENS_HORAIRE;
+T_ROTATION_SENS CurrentSensRotation=E_SENS_ANTI_HORAIRE;
 
 /* PROTOTYPES*/
 void* thread_PID(void*);
@@ -64,8 +64,8 @@ int initPID_Thread(int pin_MLI)
 	err = pthread_create(&threadPID_t, &threadPID_attr, thread_PID, NULL);
 	if( err ==0)
 	{
-		pinMode(C_PIN_RELAY_DIGITAL, OUTPUT);
-		pinMode(C_PIN_RELAY_ANALOG, OUTPUT);
+		pinMode(C_PIN_RELAY_LOGIC, OUTPUT);
+		pinMode(C_PIN_RELAY_POWER, OUTPUT);
 		pinMode(C_PIN_SENS_ROT1, OUTPUT);
 		pinMode(C_PIN_SENS_ROT2, OUTPUT);
 		pinMode(ipin_MLI, PWM_OUTPUT);
@@ -76,6 +76,22 @@ int initPID_Thread(int pin_MLI)
 		pwmWrite(ipin_MLI, 0);
 	}
 	return err;
+}
+
+void LogicRelayON(){
+	digitalWrite(C_PIN_RELAY_LOGIC, HIGH);
+}
+
+void LogicRelayOFF(){
+	digitalWrite(C_PIN_RELAY_LOGIC, LOW);
+}
+
+void PowerRelayON(){
+	digitalWrite(C_PIN_RELAY_POWER, HIGH);
+}
+
+void PowerRelayOFF(){
+	digitalWrite(C_PIN_RELAY_POWER, LOW);
 }
 
 void setSensRotation(T_ROTATION_SENS sensRotation)
@@ -114,14 +130,15 @@ void setConsigne(int consigne)
 
 void Calcul()
 {
-	 int errors = readSpeed(&i_measure);
+	int errors = readSpeed(&i_measure);
 	//std::cout << osef
-	E=i_measure-C;	//Calcul de l'erreur
+	E=C-i_measure;	//Calcul de l'erreur
 
 	u = u + B0*E + B1*E_before + B2*E2_before; //Calcul de la commande
 
 	E2_before = E_before;		//définition de l'erreur avant la précédente
 	E_before = E;				//définition de l'erreur précédente
+	//std::cout << "Commande u = " << u << std::endl;
 	pwmWrite(ipin_MLI, u);
 }
 
@@ -129,9 +146,17 @@ void* thread_PID(void* x)
 {
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
     pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
+
+    //TODO ajout de sem de synchro pour attendre la fin de l'initialisation
+
+    LogicRelayON();
+	std::cout << "[INFO] LogicRelay is ON"<< std::endl;
+	sleep(2);
+	PowerRelayON();
+	std::cout << "[INFO] PowerRelay is ON"<< std::endl;
+	sleep(2);
 	while(1)
 	{
-
 		Calcul();
 		usleep(H*10000);
 		pthread_testcancel();
@@ -141,9 +166,13 @@ void* thread_PID(void* x)
 
 int stopPID_Regulation()
 {
+	pwmWrite(ipin_MLI, 0);
+	digitalWrite(C_PIN_SENS_ROT1, LOW);
+	digitalWrite(C_PIN_SENS_ROT2, LOW);
+	PowerRelayOFF();
+	LogicRelayOFF();
 	pthread_cancel(threadPID_t);
 	pthread_join(threadPID_t, NULL);
-	pwmWrite(ipin_MLI, 0);
 	//TODO : ajouter la valeur de retour du cancel.
 	return 0;
 }

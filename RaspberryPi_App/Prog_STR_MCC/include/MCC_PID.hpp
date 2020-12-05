@@ -9,6 +9,10 @@ typedef enum{
 }T_ROTATION_SENS;
 
 int initPID_Thread(int pin_MLI);
+void PowerRelayON();
+void PowerRelayOFF();
+void LogicRelayON();
+void LogicRelayOFF();
 int stopPID_Regulation(void);
 void setSensRotation(T_ROTATION_SENS sensRotation);
 void setConsigne(int consigne);

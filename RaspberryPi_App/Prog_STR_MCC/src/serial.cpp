@@ -34,8 +34,8 @@ void initSerial(int baudrate, unsigned char rxPin, unsigned char txPin)
  * params */
 int readSpeed(float* speed)
 {
-	int i;
-	int j;
+	unsigned int i;
+	unsigned int j;
 	int currentByte = 0;
 	bool currentbit;
 
@@ -63,7 +63,7 @@ int readSpeed(float* speed)
 
 		if(ErrorReg == 0)
 		{
-			std::cout << "Réception : "; //TODO JUST TO DEBUG
+			std::cout << "Réception : \t"; //TODO JUST TO DEBUG
 			for(i=0;i<C_N_BYTES_TOT;i++){
 				currentByte = 0;
 				for(j=0;j<C_N_BITS;j++){
@@ -80,7 +80,11 @@ int readSpeed(float* speed)
 				receptionArray[i] = currentByte;
 				std::cout << currentByte << "\t"; //TODO JUST TO DEBUG
 			}
-			std::cout<<std::endl; //TODO JUST TO DEBUG
+			int display_speed = 0;
+			for(int a = 0; a < C_N_BYTES_DATA; a++){
+				display_speed += receptionArray[a]*(2^a);
+			}
+			std::cout<< " speed = " << display_speed <<std::endl; //TODO JUST TO DEBUG
 
 			digitalWrite(iTxPin, HIGH);
 
@@ -98,7 +102,7 @@ int readSpeed(float* speed)
 				{
 					//TODO: add speed calculation
 					int temp_speed = 0;
-					for(int j = 0 ; j < C_N_BYTES_DATA ; j ++)
+					for(j = 0 ; j < C_N_BYTES_DATA ; j ++)
 					{
 						temp_speed += receptionArray[j+C_POS_FIRST_DATA] << 8*j; //Mise des bytes dans un int (à valider si on fait comme ça)
 					}

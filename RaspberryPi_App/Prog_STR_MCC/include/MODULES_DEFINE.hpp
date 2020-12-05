@@ -10,8 +10,8 @@
 
 #define C_PIN_RPI_RX			17
 #define C_PIN_RPI_TX			27
-#define C_PIN_RELAY_DIGITAL		22
-#define C_PIN_RELAY_ANALOG		23
+#define C_PIN_RELAY_LOGIC		22
+#define C_PIN_RELAY_POWER		23
 #define C_PIN_MLI				18
 #define C_PIN_SENS_ROT1			24
 #define C_PIN_SENS_ROT2			25
