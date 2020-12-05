@@ -696,9 +696,9 @@ static void MX_TIM3_Init(void)
  8000514:	4b1e      	ldr	r3, [pc, #120]	; (8000590 <MX_TIM3_Init+0xa0>)
  8000516:	4a1f      	ldr	r2, [pc, #124]	; (8000594 <MX_TIM3_Init+0xa4>)
  8000518:	601a      	str	r2, [r3, #0]
-  htim3.Init.Prescaler = 4;
+  htim3.Init.Prescaler = 4-1;
  800051a:	4b1d      	ldr	r3, [pc, #116]	; (8000590 <MX_TIM3_Init+0xa0>)
- 800051c:	2204      	movs	r2, #4
+ 800051c:	2203      	movs	r2, #3
  800051e:	605a      	str	r2, [r3, #4]
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
  8000520:	4b1b      	ldr	r3, [pc, #108]	; (8000590 <MX_TIM3_Init+0xa0>)

@@ -82,7 +82,7 @@ int readSpeed(float* speed)
 			}
 			int display_speed = 0;
 			for(int a = 0; a < C_N_BYTES_DATA; a++){
-				display_speed += receptionArray[a]*(2^a);
+				display_speed += receptionArray[C_POS_FIRST_DATA+a]*(2^a);
 			}
 			std::cout<< " speed = " << display_speed <<std::endl; //TODO JUST TO DEBUG
 
