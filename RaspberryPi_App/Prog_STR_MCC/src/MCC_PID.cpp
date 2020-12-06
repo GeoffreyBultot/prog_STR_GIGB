@@ -130,7 +130,7 @@ void setConsigne(int consigne)
 
 void Calcul()
 {
-	int errors = readSpeed(&i_measure);
+	int errors = readAngle(&i_measure);
 	//std::cout << osef
 	E=C-i_measure;	//Calcul de l'erreur
 
@@ -158,7 +158,7 @@ void* thread_PID(void* x)
 	while(1)
 	{
 		Calcul();
-		usleep(H*10000);
+		usleep(H*1000);
 		pthread_testcancel();
 	}
 	return 0;

@@ -44,8 +44,7 @@
 #define C_START_BYTE		(0xF4)
 #define C_STOP_BYTE			(0xAA)
 
-#define CONVERSION_PULSE_TO_RPM 83.33	// (60/(360*0.002)) \approx 83.33
-#define CONVERSION_TICKS_TO_NS	83.33	// 1/12MEG \approx 83.33ns
+#define CONVERSION_PULSE_TO_DEGREE (4)			// Gearbox ratio 1:30
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -54,8 +53,6 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-TIM_HandleTypeDef htim3;
-
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
@@ -68,18 +65,18 @@ GPIO_InitTypeDef GPIO_InitStruct_RX =	{
 												.Mode = GPIO_MODE_IT_FALLING,
 												.Pull = GPIO_NOPULL
 										};
-int counter_Hall_A = 0;
-int counter_Hall_A_to_send = 0;
-int delta_time_between_HA_HB_ns = 0;
-unsigned int ticks_counter = 0;
-int speed_RPM = 0;
+
+_Bool encoder_on_HATrig[2] = {0, 0};
+_Bool encoder_on_HBTrig[2]= {0, 0};
+
+int pulse_counter = 0;
+int nbr_degrees_to_send = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
-static void MX_TIM3_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -123,12 +120,10 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART2_UART_Init();
-  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
-  // init timer
-  HAL_TIM_Base_Start_IT(&htim3);
   // done in gpio init so config in the .ioc
   //HAL_GPIO_WritePin(TX_GPIO_Port, TX_Pin, GPIO_PIN_SET);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -144,6 +139,7 @@ int main(void)
 
 	// Stockage dans des variables différentes de celles pour la comm
 	// pour éviter les accès concurrents
+	//--> fait en jouant sur les prio et ignorer les entrées Hall if(is_sending)
 
 	// timer
 
@@ -192,51 +188,6 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-}
-
-/**
-  * @brief TIM3 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_TIM3_Init(void)
-{
-
-  /* USER CODE BEGIN TIM3_Init 0 */
-
-  /* USER CODE END TIM3_Init 0 */
-
-  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
-  TIM_MasterConfigTypeDef sMasterConfig = {0};
-
-  /* USER CODE BEGIN TIM3_Init 1 */
-
-  /* USER CODE END TIM3_Init 1 */
-  htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 4-1;
-  htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 65535;
-  htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-  if (HAL_TIM_ConfigClockSource(&htim3, &sClockSourceConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN TIM3_Init 2 */
-
-  /* USER CODE END TIM3_Init 2 */
-
 }
 
 /**
@@ -293,7 +244,7 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(DEBUG_INT_GPIO_Port, DEBUG_INT_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, LD2_Pin|DEBUG_ISR_HALL_B_Pin|DEBUG_ISR_HALL_A_Pin|DEBUG_ISR_COMM_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(TX_GPIO_Port, TX_Pin, GPIO_PIN_SET);
@@ -311,12 +262,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(DEBUG_INT_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : LD2_Pin */
-  GPIO_InitStruct.Pin = LD2_Pin;
+  /*Configure GPIO pins : LD2_Pin DEBUG_ISR_HALL_B_Pin DEBUG_ISR_HALL_A_Pin DEBUG_ISR_COMM_Pin */
+  GPIO_InitStruct.Pin = LD2_Pin|DEBUG_ISR_HALL_B_Pin|DEBUG_ISR_HALL_A_Pin|DEBUG_ISR_COMM_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pin : TX_Pin */
   GPIO_InitStruct.Pin = TX_Pin;
@@ -333,8 +284,8 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pins : Hall_A_Pin Hall_B_Pin */
   GPIO_InitStruct.Pin = Hall_A_Pin|Hall_B_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
@@ -352,6 +303,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 		case RX_Pin:
 			// Debug Interrupt Pin SET to see when we enter in the callback function
 			HAL_GPIO_WritePin(DEBUG_INT_GPIO_Port, DEBUG_INT_Pin, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(DEBUG_ISR_COMM_GPIO_Port, DEBUG_ISR_COMM_Pin, GPIO_PIN_SET);
 
 			if(!is_sending){ // was in falling edge detection at first
 				/* At this point RPi is waiting for us to reset our TX
@@ -359,8 +311,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 				 */
 				//bToSend[C_POS_CHECKSUM] = checksum;
 				// set is_sending flag
-				is_sending = 1; // NB : hall sensor counting has stopped, since is_sending is true
-
+				is_sending = 1;
 
 				// set pin on rising edge
 				GPIO_InitStruct_RX.Mode = GPIO_MODE_IT_RISING;
@@ -373,12 +324,12 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 				tx_bit_sending = 0;
 				tx_byte_sending = 0;
 
-				// compute RPM speed
-				speed_RPM = delta_time_between_HA_HB_ns/counter_Hall_A*1;//CONVERSION_PULSE_TO_RPM;
-
+				// NB cannot move in main because it HAS to be finished before we accept to start communication
+				// Optimisation : reduce to reduce time in this ISR : minimize the nbr of packets to send
 				// prep package to send
+				nbr_degrees_to_send = pulse_counter;
 				for(int i = 0; i < C_N_BYTES_DATA; i++){
-					bToSend[C_POS_FIRST_DATA+i] = ((speed_RPM >> (i*8)) & 0xFF); //LSB First
+					bToSend[C_POS_FIRST_DATA+i] = ((nbr_degrees_to_send >> (i*8)) & 0xFF); //LSB First
 					//checksum += bToSend[C_POS_FIRST_DATA+i];
 					//bToSend[C_POS_FIRST_DATA+i] = ((counter_Hall_A >> (i*8)) & 0xFF); //LSB First
 				}
@@ -415,41 +366,46 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 				}
 			}
 			HAL_GPIO_WritePin(DEBUG_INT_GPIO_Port, DEBUG_INT_Pin, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(DEBUG_ISR_COMM_GPIO_Port, DEBUG_ISR_COMM_Pin, GPIO_PIN_RESET);
 			break;
 
 		case Hall_A_Pin:
-			if(!is_sending){
-				// to get speed
-				counter_Hall_A++;
-				HAL_TIM_Base_Start(&htim3);
-				// to get direction of rotation
-				//time_Hall_A = time(NULL);
-				//delta_time_Hall_A = difftime(time_Hall_A, time_Hall_B);
-			}
-			break;
+			HAL_GPIO_WritePin(DEBUG_ISR_HALL_A_GPIO_Port, DEBUG_ISR_HALL_A_Pin, GPIO_PIN_SET);
+			// first we need to know the state of Hall_B
+			encoder_on_HATrig[1] = HAL_GPIO_ReadPin(Hall_B_GPIO_Port, Hall_B_Pin);
+			encoder_on_HATrig[0] = HAL_GPIO_ReadPin(Hall_A_GPIO_Port, Hall_A_Pin);
 
+			//TODO move in main
+			// increment or decrement nbr of pulse measured according to the direction of rotation
+			// if it is rotating clock wise (CW), A always trigs before B, so they're always different
+			if(encoder_on_HATrig[0] != encoder_on_HATrig[1]){
+				pulse_counter++;	// atomic operation
+			}
+			else{
+				//pulse_counter--;
+			}
+			HAL_GPIO_WritePin(DEBUG_ISR_HALL_A_GPIO_Port, DEBUG_ISR_HALL_A_Pin, GPIO_PIN_RESET);
+			break;
 		case Hall_B_Pin:
-			if(!is_sending){
-				HAL_TIM_Base_Stop(&htim3);
-				ticks_counter = htim3.Instance->CNT;
-				delta_time_between_HA_HB_ns += ticks_counter;// * CONVERSION_TICKS_TO_NS;
-				// just to get the direction of rotation
-				//time_Hall_B = time(NULL);
-				//delta_time_Hall_B = difftime(time_Hall_B, time_Hall_A);
-			}
-			break;
+			HAL_GPIO_WritePin(DEBUG_ISR_HALL_B_GPIO_Port, DEBUG_ISR_HALL_B_Pin, GPIO_PIN_SET);
+			// first we need to know the state of Hall_B
+			encoder_on_HBTrig[1] = HAL_GPIO_ReadPin(Hall_B_GPIO_Port, Hall_B_Pin);
+			encoder_on_HBTrig[0] = HAL_GPIO_ReadPin(Hall_A_GPIO_Port, Hall_A_Pin);
+			//TODO move in main
+			// increment or decrement nbr of pulse measured according to the direction of rotation
 
+			// if it is rotating clock wise (CW), B always trigs after A, so they're always equal
+			if(encoder_on_HBTrig[0] == encoder_on_HBTrig[1]){
+				pulse_counter++;	// atomic operation
+			}
+			else{
+				//pulse_counter--;
+			}
+			HAL_GPIO_WritePin(DEBUG_ISR_HALL_B_GPIO_Port, DEBUG_ISR_HALL_B_Pin, GPIO_PIN_RESET);
+			break;
 	}
 }
-/*
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
-	// 2 ms period
-	if(htim == &htim3){
-		counter_Hall_A_to_send = counter_Hall_A;
-		counter_Hall_A = 0;
-	}
-}
-*/
+
 /* USER CODE END 4 */
 
 /**

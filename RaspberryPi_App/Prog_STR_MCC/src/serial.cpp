@@ -5,7 +5,9 @@
 #include <iostream>
 #include "unistd.h"
 #include <wiringPi.h>
+#include <math.h>
 #include "MODULES_DEFINE.hpp"
+
 int iTxPin;
 int iRxPin;
 
@@ -25,14 +27,14 @@ void initSerial(int baudrate, unsigned char rxPin, unsigned char txPin)
 	pinMode(iTxPin,OUTPUT);
 
 	digitalWrite(iTxPin, HIGH);
-	usleep(1000000);
+	//usleep(1000000);
 }
 
 /*
  * @brief function
  * return register of occured errors
  * params */
-int readSpeed(float* speed)
+int readAngle(float* speed)
 {
 	unsigned int i;
 	unsigned int j;
@@ -82,9 +84,9 @@ int readSpeed(float* speed)
 			}
 			int display_speed = 0;
 			for(int a = 0; a < C_N_BYTES_DATA; a++){
-				display_speed += receptionArray[C_POS_FIRST_DATA+a]*(2^a);
+				display_speed += receptionArray[C_POS_FIRST_DATA+a]*pow(256,a);
 			}
-			std::cout<< " speed = " << display_speed <<std::endl; //TODO JUST TO DEBUG
+			std::cout<< " Position du moteur = " << display_speed << std::endl; //TODO JUST TO DEBUG
 
 			digitalWrite(iTxPin, HIGH);
 
@@ -117,7 +119,6 @@ int readSpeed(float* speed)
 	}
 	return ErrorReg;
 }
-
 
 
 void serialNanoSleep(int nanoSec)
