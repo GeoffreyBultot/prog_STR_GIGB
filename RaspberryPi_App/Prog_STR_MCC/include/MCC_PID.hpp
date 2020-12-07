@@ -8,6 +8,11 @@ typedef enum{
 	E_SENS_ANTI_HORAIRE,
 }T_ROTATION_SENS;
 
+/*Extern beacause variables used in communication.cpp*/
+extern int C;
+extern int i_measure;
+extern int MCC_Status;
+
 int initPID_Thread(int pin_MLI);
 void PowerRelayON();
 void PowerRelayOFF();

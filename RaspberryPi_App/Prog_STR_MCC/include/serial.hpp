@@ -15,6 +15,6 @@
 
 void initSerial(int baudrate, unsigned char rxPin, unsigned char txPin);
 /*blocking function*/
-int readAngle(float*);
+int readAngle(int*);
 
 #endif //_SERIAL_H_

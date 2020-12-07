@@ -34,7 +34,7 @@ void initSerial(int baudrate, unsigned char rxPin, unsigned char txPin)
  * @brief function
  * return register of occured errors
  * params */
-int readAngle(float* speed)
+int readAngle(int* angle)
 {
 	unsigned int i;
 	unsigned int j;
@@ -108,7 +108,7 @@ int readAngle(float* speed)
 					{
 						temp_speed += receptionArray[j+C_POS_FIRST_DATA] << 8*j; //Mise des bytes dans un int (à valider si on fait comme ça)
 					}
-					(*speed) = ((float)temp_speed) * C_CONSTANT_SPEED_CALCULATION;
+					(*angle) = ((float)temp_speed) * C_CONSTANT_SPEED_CALCULATION;
 
 				}
 				else{ErrorReg = 4;}

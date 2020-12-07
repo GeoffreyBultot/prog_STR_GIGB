@@ -33,6 +33,14 @@
 #define Ti  Tcr*0.5 		//Gain intégrale
 #define Td  Tcr*0.125		//Gain dérivée
 
+/*status bytes (in the same order of telemetries list on the C# application*/
+
+#define C_STATUS_REGULATION_ON		1<<0
+#define C_STATUS_COMMUNICATION_ON	1<<1
+#define C_STATUS_ANALOG_SUPPLY_ON	1<<2
+#define C_STATUS_LOGIC_SUPPLY_ON	1<<3
+
+
 //Constantes multiplicatives dépendant de la
 //fréquence, du gain d'intégrale Ti et dérivée Td
 #define B0 Tp * ( (H/(2*Ti)) + (Td/H) + 1 )
@@ -55,13 +63,17 @@ void* thread_PID(void*);
 pthread_attr_t threadPID_attr;
 pthread_t threadPID_t;
 int ipin_MLI;
-float i_measure;
+int i_measure;
+int MCC_Status;
 
 int initPID_Thread(int pin_MLI)
 {
 	int err = 0;
 	ipin_MLI = pin_MLI;
+	MCC_Status = 0xFF;
+	MCC_Status &=~ C_STATUS_COMMUNICATION_ON;
 	err = pthread_create(&threadPID_t, &threadPID_attr, thread_PID, NULL);
+
 	if( err ==0)
 	{
 		pinMode(C_PIN_RELAY_LOGIC, OUTPUT);
@@ -80,18 +92,22 @@ int initPID_Thread(int pin_MLI)
 
 void LogicRelayON(){
 	digitalWrite(C_PIN_RELAY_LOGIC, HIGH);
+	MCC_Status |= C_STATUS_LOGIC_SUPPLY_ON;
 }
 
 void LogicRelayOFF(){
 	digitalWrite(C_PIN_RELAY_LOGIC, LOW);
+	MCC_Status &=~ C_STATUS_LOGIC_SUPPLY_ON;
 }
 
 void PowerRelayON(){
 	digitalWrite(C_PIN_RELAY_POWER, HIGH);
+	MCC_Status |= C_STATUS_ANALOG_SUPPLY_ON;
 }
 
 void PowerRelayOFF(){
 	digitalWrite(C_PIN_RELAY_POWER, LOW);
+	MCC_Status &=~ C_STATUS_ANALOG_SUPPLY_ON;
 }
 
 void setSensRotation(T_ROTATION_SENS sensRotation)
@@ -131,15 +147,26 @@ void setConsigne(int consigne)
 void Calcul()
 {
 	int errors = readAngle(&i_measure);
-	//std::cout << osef
-	E=C-i_measure;	//Calcul de l'erreur
+	if(errors)
+	{
+		//TODO : Handle errors. On arrête la régulation pour une erreur de transmit ?
+		MCC_Status &=~ C_STATUS_COMMUNICATION_ON;
+		//Si arrêt de la régu : // MCC_Status &=~ C_STATUS_REGULATION_ON;
 
-	u = u + B0*E + B1*E_before + B2*E2_before; //Calcul de la commande
+	}
+	else
+	{
 
-	E2_before = E_before;		//définition de l'erreur avant la précédente
-	E_before = E;				//définition de l'erreur précédente
-	//std::cout << "Commande u = " << u << std::endl;
-	pwmWrite(ipin_MLI, u);
+		E=C-(float)i_measure;	//Calcul de l'erreur
+
+		u = u + B0*E + B1*E_before + B2*E2_before; //Calcul de la commande
+
+		E2_before = E_before;		//définition de l'erreur avant la précédente
+		E_before = E;				//définition de l'erreur précédente
+		//std::cout << "Commande u = " << u << std::endl;
+		pwmWrite(ipin_MLI, u);
+		MCC_Status |= C_STATUS_COMMUNICATION_ON;
+	}
 }
 
 void* thread_PID(void* x)
@@ -155,6 +182,7 @@ void* thread_PID(void* x)
 	PowerRelayON();
 	std::cout << "[INFO] PowerRelay is ON"<< std::endl;
 	sleep(2);
+	MCC_Status |= C_STATUS_REGULATION_ON;
 	while(1)
 	{
 		Calcul();

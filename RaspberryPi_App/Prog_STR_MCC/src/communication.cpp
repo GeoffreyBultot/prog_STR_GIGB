@@ -8,6 +8,7 @@
 #include<unistd.h>
 #include<pthread.h>
 #include <stdio.h>
+#include <MCC_PID.hpp>
 
 void* thread_Communication(void*);
 
@@ -55,49 +56,56 @@ int initCOM_Thread(void)
     return 0;
 }
 
-
+int angle;
 void* thread_Communication(void*)
 {
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
     pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
-    //Get the socket descriptor
-    //int socket_desc = *(int*)socket;
+
     int client_sock;
     int read_size;
-    char *message , client_message[20];
 
-	//Accept and incoming connection
-	puts("Waiting for incoming connections...");
-	c = sizeof(struct sockaddr_in);
+    c = sizeof(struct sockaddr_in);
+    std::cout<< "[INFO] Waiting for incoming connections..."<<std::endl;
 
-	std::cout << "test"<<std::endl;
+
 	client_sock = accept(socket_desc, (struct sockaddr *)&client, (socklen_t*)&c);
 	while(client_sock < 0)
 	{
 		client_sock = accept(socket_desc, (struct sockaddr *)&client, (socklen_t*)&c);
 	}
 
-	std::cout<<"connected"<<std::endl;
+	std::cout<<"[INFO] Client connected"<<std::endl;
 
 	while(1)
     {
 		//TODO : machine d'état pour les reconnexions ?
-		if( (read_size = recv(client_sock , client_message , 2 , 0)) > 0 )
+		int32_t AngleConsigne;
+		char *data = (char*)&AngleConsigne;
+		int size = sizeof(AngleConsigne);
+
+		if( (read_size = recv(client_sock , data , size , 0)) > 0 )
 		{
-			std::cout<<client_message<<std::endl;
-			//write(client_sock, client_message , strlen(client_message));
-			//Todo : recevoir les informations en bytes
-			memset(client_message, 0, 3);//Clear
+			//TODO ajouter des vérifications sur la lecture de C
+			//TODO : mutex ?
+			C = *((int*)data);//atoi(data);
+			std::cout<<"data:"<<data<<std::endl;
+			printf("%d",C);
+
+			char buffer[6];
+			sprintf(buffer, "%d;%d", i_measure, MCC_Status); //TODO  \0 ?
+			write(client_sock, buffer , strlen(buffer));
 		}
 		else if(read_size == 0)
 		{
-			puts("Client disconnected");
-			//fflush(stdout);
+			puts("[WARNING] Client disconnected");
 			client_sock = accept(socket_desc, (struct sockaddr *)&client, (socklen_t*)&c);
 			while(client_sock < 0)
 			{
 				client_sock = accept(socket_desc, (struct sockaddr *)&client, (socklen_t*)&c);
 			}
+			std::cout<<"[INFO] Client reconnected"<<std::endl;
+
 		}
 		else if(read_size == -1)
 		{
@@ -105,7 +113,7 @@ void* thread_Communication(void*)
 		}
 
 		//TODO : Envoyer l'angle moteur tous les x temps
-		//TODO : Set la consigne (mutex ?)
+
 		pthread_testcancel();
     }
 }
