@@ -45,7 +45,7 @@ int readAngle(int* angle)
 	//TODO ADD FALLING EDGE DETECTION
 	if(digitalRead(iRxPin) != HIGH)
 	{
-		std::cout<<"[DEBUG] PAS DE NUCLEO DETECTE" <<std::endl;
+		//std::cout<<"[DEBUG] PAS DE NUCLEO DETECTE" <<std::endl;
 		ErrorReg = 2; //ERROR : pas de nucleo detecte
 	}
 	else

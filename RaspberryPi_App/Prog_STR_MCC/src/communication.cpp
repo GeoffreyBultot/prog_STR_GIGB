@@ -9,6 +9,7 @@
 #include<pthread.h>
 #include <stdio.h>
 #include <MCC_PID.hpp>
+#include <sys/time.h>
 
 void* thread_Communication(void*);
 
@@ -77,6 +78,11 @@ void* thread_Communication(void*)
 
 	std::cout<<"[INFO] Client connected"<<std::endl;
 
+	char buffer[6];
+	int difftime = 0;
+	struct timeval stop, start;
+	gettimeofday(&start, NULL);
+	i_measure = 0;
 	while(1)
     {
 		//TODO : machine d'état pour les reconnexions ?
@@ -84,17 +90,12 @@ void* thread_Communication(void*)
 		char *data = (char*)&AngleConsigne;
 		int size = sizeof(AngleConsigne);
 
-		if( (read_size = recv(client_sock , data , size , 0)) > 0 )
+		if( (read_size = recv(client_sock , data , size , MSG_DONTWAIT)) > 0 )
 		{
 			//TODO ajouter des vérifications sur la lecture de C
 			//TODO : mutex ?
 			C = *((int*)data);//atoi(data);
 			std::cout<<"data:"<<data<<std::endl;
-			printf("%d",C);
-
-			char buffer[6];
-			sprintf(buffer, "%d;%d", i_measure, MCC_Status); //TODO  \0 ?
-			write(client_sock, buffer , strlen(buffer));
 		}
 		else if(read_size == 0)
 		{
@@ -109,10 +110,22 @@ void* thread_Communication(void*)
 		}
 		else if(read_size == -1)
 		{
-			perror("recv failed");
+			//perror("recv failed");
+		}
+		gettimeofday(&stop, NULL);
+		//printf("us :  %lu us\n", (stop.tv_sec - start.tv_sec) * 1000000 + stop.tv_usec - start.tv_usec);
+		difftime = (stop.tv_sec - start.tv_sec) * 1000000 + stop.tv_usec - start.tv_usec;
+		//std::cout<<difftime<<std::endl;
+		if(difftime > 100000)
+		{
+			i_measure++;
+			i_measure %= 360;
+			sprintf(buffer, "%d;%d", i_measure, MCC_Status); //TODO  \0 ?
+			write(client_sock, buffer , strlen(buffer));
+			gettimeofday(&start, NULL);
 		}
 
-		//TODO : Envoyer l'angle moteur tous les x temps
+
 
 		pthread_testcancel();
     }
