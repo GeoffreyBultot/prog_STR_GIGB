@@ -84,8 +84,8 @@ int main()
 	else
 		std::cout << "[INFO] THREAD REGULATION not started ERROR VALUE: "<< err << std::endl;
 
-
-	//err = initCOM_Thread();
+	//TODO: erreur thread com
+	err = initCOM_Thread();
 	setSensRotation(E_SENS_DEFAULT);
 	setConsigne(180);
 

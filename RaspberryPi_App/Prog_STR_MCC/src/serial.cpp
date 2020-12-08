@@ -55,10 +55,10 @@ int readAngle(int* angle)
 		//Waiting com from Nucleo
 
 		int start_timeout = time(NULL);
-
+		//TODO DIMINUER CE TEMPS
 		while(digitalRead(iRxPin) != LOW){
 			if(difftime(time(NULL), start_timeout) >= 1){
-				std::cout<<"[DEBUG] NUCLEO DETECTED BUT NOT RESPONDING"<<std::endl;
+				//std::cout<<"[DEBUG] NUCLEO DETECTED BUT NOT RESPONDING"<<std::endl;
 				ErrorReg = 3;
 			}
 		}
@@ -82,24 +82,14 @@ int readAngle(int* angle)
 				receptionArray[i] = currentByte;
 				//std::cout << currentByte << "\t"; //TODO JUST TO DEBUG
 			}
-			/*int display_speed = 0;
-			for(int a = 0; a < C_N_BYTES_DATA; a++){
-				display_speed += receptionArray[C_POS_FIRST_DATA+a]*pow(256,a);
-			}
-			std::cout<< " Position du moteur = " << display_speed << std::endl; //TODO JUST TO DEBUG
-			*/
 
 			digitalWrite(iTxPin, HIGH);
 
 
-			if( (receptionArray[C_POS_START_BYTE] == C_START_BYTE) && (receptionArray[C_POS_STOP_BYTE] == C_STOP_BYTE) )
-			{
 				unsigned char checksum = 0;
-				checksum = C_START_BYTE;
 				for(i = C_POS_FIRST_DATA ; i< C_POS_CHECKSUM; i++){
 					checksum += receptionArray[i];
 				}
-				checksum += C_STOP_BYTE;
 
 				if(checksum == receptionArray[C_POS_CHECKSUM])
 				{
@@ -109,9 +99,6 @@ int readAngle(int* angle)
 					//ErrorReg = 0;
 				}
 				else{ErrorReg = 4;}
-			}
-			else{ErrorReg = 5;}
-			//return getSpeedFromCOM();
 		}
 	}
 	return ErrorReg;

@@ -82,7 +82,6 @@ void* thread_Communication(void*)
 	int difftime = 0;
 	struct timeval stop, start;
 	gettimeofday(&start, NULL);
-	i_measure = 0;
 	while(1)
     {
 		//TODO : machine d'état pour les reconnexions ?
@@ -118,8 +117,6 @@ void* thread_Communication(void*)
 		//std::cout<<difftime<<std::endl;
 		if(difftime > 100000)
 		{
-			i_measure++;
-			i_measure %= 360;
 			sprintf(buffer, "%d;%d", i_measure, MCC_Status); //TODO  \0 ?
 			write(client_sock, buffer , strlen(buffer));
 			gettimeofday(&start, NULL);
