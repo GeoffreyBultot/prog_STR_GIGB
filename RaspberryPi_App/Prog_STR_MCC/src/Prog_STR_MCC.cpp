@@ -85,12 +85,12 @@ int main()
 		std::cout << "[INFO] THREAD REGULATION not started ERROR VALUE: "<< err << std::endl;
 
 
-	err = initCOM_Thread();
-	setSensRotation(E_SENS_HORAIRE);
-	setConsigne(30);
+	//err = initCOM_Thread();
+	setSensRotation(E_SENS_DEFAULT);
+	setConsigne(180);
 
 	// SIGTERM est jamais intercepté ! donc pour terminer le pgrm proprement en attendant...
-	sleep(50);
+	sleep(10);
 	terminerProgramme();
 
 	while(1)//loop forever

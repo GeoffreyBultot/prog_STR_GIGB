@@ -65,7 +65,7 @@ int readAngle(int* angle)
 
 		if(ErrorReg == 0)
 		{
-			std::cout << "Réception : \t"; //TODO JUST TO DEBUG
+			//std::cout << "Réception : \t"; //TODO JUST TO DEBUG
 			for(i=0;i<C_N_BYTES_TOT;i++){
 				currentByte = 0;
 				for(j=0;j<C_N_BITS;j++){
@@ -80,13 +80,14 @@ int readAngle(int* angle)
 					currentByte |= currentbit<<j;
 				}
 				receptionArray[i] = currentByte;
-				std::cout << currentByte << "\t"; //TODO JUST TO DEBUG
+				//std::cout << currentByte << "\t"; //TODO JUST TO DEBUG
 			}
-			int display_speed = 0;
+			/*int display_speed = 0;
 			for(int a = 0; a < C_N_BYTES_DATA; a++){
 				display_speed += receptionArray[C_POS_FIRST_DATA+a]*pow(256,a);
 			}
 			std::cout<< " Position du moteur = " << display_speed << std::endl; //TODO JUST TO DEBUG
+			*/
 
 			digitalWrite(iTxPin, HIGH);
 
@@ -102,14 +103,10 @@ int readAngle(int* angle)
 
 				if(checksum == receptionArray[C_POS_CHECKSUM])
 				{
-					//TODO: add speed calculation
-					int temp_speed = 0;
-					for(j = 0 ; j < C_N_BYTES_DATA ; j ++)
-					{
-						temp_speed += receptionArray[j+C_POS_FIRST_DATA] << 8*j; //Mise des bytes dans un int (à valider si on fait comme ça)
-					}
-					(*angle) = ((float)temp_speed) * C_CONSTANT_SPEED_CALCULATION;
-
+					signed int temp_speed = *(   (int*)(&(receptionArray[C_POS_FIRST_DATA])));
+					//std::cout<< " Position du moteur = " << temp_speed << std::endl; //TODO JUST TO DEBUG
+					(*angle) = temp_speed;
+					//ErrorReg = 0;
 				}
 				else{ErrorReg = 4;}
 			}

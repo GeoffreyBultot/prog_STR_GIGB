@@ -49,13 +49,13 @@
 
 /* GLOBAL VARIABLES */
 int C = 0;
-double u = 0;			//Valeur renvoyée au robot
-double E = 0;			//Erreur actuelle
-double E_before = 0;	//Erreur précedente
-double E2_before = 0;	//Erreur avant la précédente
-double M = 0;			//Mesure
+float u = 0;			//Valeur renvoyée au robot
+float E = 0;			//Erreur actuelle
+float E_before = 0;	//Erreur précedente
+float E2_before = 0;	//Erreur avant la précédente
+float M = 0;			//Mesure
 
-T_ROTATION_SENS CurrentSensRotation=E_SENS_ANTI_HORAIRE;
+T_ROTATION_SENS CurrentSensRotation=E_SENS_DEFAULT;
 
 /* PROTOTYPES*/
 void* thread_PID(void*);
@@ -91,49 +91,55 @@ int initPID_Thread(int pin_MLI)
 }
 
 void LogicRelayON(){
-	digitalWrite(C_PIN_RELAY_LOGIC, HIGH);
+	digitalWrite(C_PIN_RELAY_LOGIC, LOW);
 	MCC_Status |= C_STATUS_LOGIC_SUPPLY_ON;
 }
 
 void LogicRelayOFF(){
-	digitalWrite(C_PIN_RELAY_LOGIC, LOW);
+	digitalWrite(C_PIN_RELAY_LOGIC, HIGH);
 	MCC_Status &=~ C_STATUS_LOGIC_SUPPLY_ON;
 }
 
 void PowerRelayON(){
-	digitalWrite(C_PIN_RELAY_POWER, HIGH);
+	digitalWrite(C_PIN_RELAY_POWER, LOW);
 	MCC_Status |= C_STATUS_ANALOG_SUPPLY_ON;
 }
 
 void PowerRelayOFF(){
-	digitalWrite(C_PIN_RELAY_POWER, LOW);
+	digitalWrite(C_PIN_RELAY_POWER, HIGH);
 	MCC_Status &=~ C_STATUS_ANALOG_SUPPLY_ON;
 }
 
 void setSensRotation(T_ROTATION_SENS sensRotation)
 {
-	if(sensRotation != CurrentSensRotation)
+	if(1)//sensRotation != CurrentSensRotation)
 	{
 		/*TODO: (voir si c'est la bonne méthode) l'idee ici c est de s assurer que le moteur est bien
 		 * arrete avant de changer de sens de rotation pour ne pas endommager l electronique*/
-		int temp_c = C;
-		C = 0; //Mise de la consigne à 0
-		while(i_measure != 0); //Attendre l'arrête du moteur
+		//int temp_c = C;
+		//C = 0; //Mise de la consigne à 0
+		/*while(i_measure != 0); //Attendre l'arrête du moteur
 		CurrentSensRotation = sensRotation;//Sauvegarde du nouveau sens de rotation
-
+		*/
 		//Activation des pins
-		if(CurrentSensRotation == E_SENS_HORAIRE)
+		switch(sensRotation)
 		{
-			digitalWrite(C_PIN_SENS_ROT1, HIGH);
+		case E_SENS_DEFAULT:
+			digitalWrite(C_PIN_SENS_ROT1, LOW);
 			digitalWrite(C_PIN_SENS_ROT2, LOW);
-		}
-		else if(CurrentSensRotation == E_SENS_ANTI_HORAIRE)
-		{
+			break;
+		case E_SENS_HORAIRE:
 			digitalWrite(C_PIN_SENS_ROT1, LOW);
 			digitalWrite(C_PIN_SENS_ROT2, HIGH);
+			break;
+		case E_SENS_ANTI_HORAIRE:
+			digitalWrite(C_PIN_SENS_ROT1, HIGH);
+			digitalWrite(C_PIN_SENS_ROT2, LOW);
+			break;
 		}
+		CurrentSensRotation =  sensRotation;
 
-		C = temp_c; //Faire tourner à la même vitesse qu'avant dans l autre sens
+		//C = temp_c; //Faire tourner à la même vitesse qu'avant dans l autre sens
 	}
 }
 
@@ -146,26 +152,51 @@ void setConsigne(int consigne)
 
 void Calcul()
 {
+	//kp = 0.02 : stabilitsation
+	float kp = 0.045;
+	float epsilon;
 	int errors = readAngle(&i_measure);
+
 	if(errors)
 	{
 		//TODO : Handle errors. On arrête la régulation pour une erreur de transmit ?
 		MCC_Status &=~ C_STATUS_COMMUNICATION_ON;
 		//Si arrêt de la régu : // MCC_Status &=~ C_STATUS_REGULATION_ON;
+		std::cout<< "[DEBUG] ERROR IN COM : " << errors << std::endl;
 
 	}
 	else
 	{
 
-		E=C-(float)i_measure;	//Calcul de l'erreur
+		epsilon = C - (float)i_measure;	//Calcul de l'erreur
 
-		u = u + B0*E + B1*E_before + B2*E2_before; //Calcul de la commande
+		u = epsilon * kp;
+		//std::cout<<"[DEBUG] consigne = " << C << "\t i_measure = " << i_measure << "\t u = " << u <<std::endl;
+		std::cout<<i_measure<<std::endl;
+
+		if(u < 0)
+		{
+			if(u<-1){u=-1.0;}
+			setSensRotation(E_SENS_HORAIRE);
+			pwmWrite(ipin_MLI, -(u*MAX_PWM));
+		}
+		else
+		{
+			if(u>1){u=1.0;}
+			setSensRotation(E_SENS_ANTI_HORAIRE);
+			pwmWrite(ipin_MLI, u*MAX_PWM);
+		}
+
+		/*u = u + B0*E + B1*E_before + B2*E2_before; //Calcul de la commande
 
 		E2_before = E_before;		//définition de l'erreur avant la précédente
 		E_before = E;				//définition de l'erreur précédente
 		//std::cout << "Commande u = " << u << std::endl;
-		pwmWrite(ipin_MLI, u);
+		*/
+
+
 		MCC_Status |= C_STATUS_COMMUNICATION_ON;
+
 	}
 }
 
@@ -178,10 +209,10 @@ void* thread_PID(void* x)
 
     LogicRelayON();
 	std::cout << "[INFO] LogicRelay is ON"<< std::endl;
-	sleep(2);
+	//sleep(2);
 	PowerRelayON();
 	std::cout << "[INFO] PowerRelay is ON"<< std::endl;
-	sleep(2);
+	//sleep(2);
 	MCC_Status |= C_STATUS_REGULATION_ON;
 	while(1)
 	{

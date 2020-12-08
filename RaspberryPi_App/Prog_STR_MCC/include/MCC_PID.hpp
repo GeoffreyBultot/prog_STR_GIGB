@@ -4,8 +4,9 @@
 #define C_PERIOD 200
 
 typedef enum{
+	E_SENS_DEFAULT,
 	E_SENS_HORAIRE,
-	E_SENS_ANTI_HORAIRE,
+	E_SENS_ANTI_HORAIRE
 }T_ROTATION_SENS;
 
 /*Extern beacause variables used in communication.cpp*/
