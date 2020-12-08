@@ -34,7 +34,7 @@
 /* USER CODE BEGIN PD */
 #define C_N_BITS 			(8)
 #define C_N_BYTES_DATA 		(sizeof(int))
-#define C_N_BYTES_TOT		(C_N_BYTES_DATA+4)	// 1 byte start + (4) de data + 1 byte d'erreur + 1 byte checksum + 1 byte stop = 8
+#define C_N_BYTES_TOT		(C_N_BYTES_DATA+3)	// 1 byte start + (4) de data + 1 byte checksum + 1 byte stop = 7
 
 #define C_POS_START_BYTE 	(0)
 #define C_POS_FIRST_DATA 	(1)
@@ -44,7 +44,10 @@
 #define C_START_BYTE		(0xF4)
 #define C_STOP_BYTE			(0xAA)
 
-#define CONVERSION_PULSE_TO_DEGREE (4)			// Gearbox ratio 1:30
+//#define CONVERSION_PULSE_TO_DEGREE 1			// Gearbox ratio 1:30 --> 1 output shaft = 30 little gear rotation (LGR)
+												// 2 hall sensors
+												// motor of 3 pairs of poles --> 6 states/hall sensor/LGR
+												// for 1 output shaft turn : 30 LGR * 2 hall sensor * 6 states/hall sensor/ LGR
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -69,8 +72,9 @@ GPIO_InitTypeDef GPIO_InitStruct_RX =	{
 _Bool encoder_on_HATrig[2] = {0, 0};
 _Bool encoder_on_HBTrig[2]= {0, 0};
 
-int pulse_counter = 0;
-int nbr_degrees_to_send = 0;
+signed int pulse_counter = 0;
+signed int nbr_degrees_to_send = 0;
+unsigned char checksum = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -309,7 +313,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 				/* At this point RPi is waiting for us to reset our TX
 				 * So can take the time we need (<timeout) to prep the bytes to send before responding
 				 */
-				//bToSend[C_POS_CHECKSUM] = checksum;
 				// set is_sending flag
 				is_sending = 1;
 
@@ -327,12 +330,13 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 				// NB cannot move in main because it HAS to be finished before we accept to start communication
 				// Optimisation : reduce to reduce time in this ISR : minimize the nbr of packets to send
 				// prep package to send
+				checksum = (unsigned char) (C_START_BYTE + C_STOP_BYTE);
 				nbr_degrees_to_send = pulse_counter;
 				for(int i = 0; i < C_N_BYTES_DATA; i++){
 					bToSend[C_POS_FIRST_DATA+i] = ((nbr_degrees_to_send >> (i*8)) & 0xFF); //LSB First
-					//checksum += bToSend[C_POS_FIRST_DATA+i];
-					//bToSend[C_POS_FIRST_DATA+i] = ((counter_Hall_A >> (i*8)) & 0xFF); //LSB First
+					checksum += (unsigned char) bToSend[C_POS_FIRST_DATA+i];
 				}
+				bToSend[C_POS_CHECKSUM] = checksum;
 
 				// tx pin reset to tell RPi to start its clock
 				HAL_GPIO_WritePin(TX_GPIO_Port, TX_Pin, GPIO_PIN_RESET);
@@ -382,7 +386,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 				pulse_counter++;	// atomic operation
 			}
 			else{
-				//pulse_counter--;
+				pulse_counter--;
 			}
 			HAL_GPIO_WritePin(DEBUG_ISR_HALL_A_GPIO_Port, DEBUG_ISR_HALL_A_Pin, GPIO_PIN_RESET);
 			break;
@@ -399,7 +403,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 				pulse_counter++;	// atomic operation
 			}
 			else{
-				//pulse_counter--;
+				pulse_counter--;
 			}
 			HAL_GPIO_WritePin(DEBUG_ISR_HALL_B_GPIO_Port, DEBUG_ISR_HALL_B_Pin, GPIO_PIN_RESET);
 			break;
