@@ -14,7 +14,14 @@ extern int C;
 extern int i_measure;
 extern int MCC_Status;
 
+//#define LOG_MEASURE
+
+#ifdef LOG_MEASURE
+int initPID_Thread(int pin_MLI, float Prop);
+#else
 int initPID_Thread(int pin_MLI);
+#endif
+
 void PowerRelayON();
 void PowerRelayOFF();
 void LogicRelayON();

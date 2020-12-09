@@ -17,7 +17,8 @@
 #include "softPwm.h"
 #include "serial.hpp"
 #include "MODULES_DEFINE.hpp"
-
+#include <sys/time.h>
+#include "string.h"
 
 /* DEFINES */
 #define MAX_PWM 1024	//RANGE max
@@ -25,13 +26,24 @@
 #define CLOCK_PWM 4096	//CLOCK PWM (between 0 TO 4094) //TODO savoir la fréquence exacte
 
 //NICHOLS ZIEGLER //TODO
-#define Kcr		10
-#define Tcr		5
+#define Kcr		0.14
+#define Tcr		74.653
 
-#define H	4.77			//Période ech en mS //5 = 210Hz
-#define Tp  Kcr*0.6			//Gain proportionnel
+#define dt	4.77			//Période ech en mS //5 = 210Hz
+#define invdt 1/dt
+
+/*
+#define Kp  Kcr*0.6			//Gain proportionnel
 #define Ti  Tcr*0.5 		//Gain intégrale
 #define Td  Tcr*0.125		//Gain dérivée
+*/
+#define Kp 0.01
+#define Ti 1000000
+#define Td 99999999999999
+
+#define Ki	1/Ti
+#define Kd	1/Td
+
 
 /*status bytes (in the same order of telemetries list on the C# application*/
 
@@ -40,12 +52,13 @@
 #define C_STATUS_ANALOG_SUPPLY_ON	1<<2
 #define C_STATUS_LOGIC_SUPPLY_ON	1<<3
 
-
+/*
 //Constantes multiplicatives dépendant de la
 //fréquence, du gain d'intégrale Ti et dérivée Td
 #define B0 Tp * ( (H/(2*Ti)) + (Td/H) + 1 )
 #define B1 Tp * ( (H/(2*Ti)) - (2*Td/H) - 1 )
 #define B2 Tp * Td / H
+*/
 
 /* GLOBAL VARIABLES */
 int C = 0;
@@ -66,12 +79,45 @@ int ipin_MLI;
 int i_measure;
 int MCC_Status;
 
+//TODO Remove after found Kcr
+#ifdef LOG_MEASURE
+static float GainProp = 0.0;
+char filename[200] = "";
+struct timeval stop_kcr, start_kcr;
+FILE* fp;
+#endif
+
+
+#ifdef LOG_MEASURE
+int initPID_Thread(int pin_MLI, float Prop)
+#else
 int initPID_Thread(int pin_MLI)
+#endif
+
 {
 	int err = 0;
 	ipin_MLI = pin_MLI;
 	MCC_Status = 0xFF;
 	MCC_Status &=~ C_STATUS_COMMUNICATION_ON;
+
+	//std::cout<<kpt<<"  "<<kp<<std::endl;
+
+	time_t rawtime;
+	struct tm * timeinfo;
+	time ( &rawtime );
+	timeinfo = localtime ( &rawtime );
+	//printf ( "Current local time and date: %s", asctime (timeinfo) );
+
+#ifdef LOG_MEASURE
+	GainProp = Prop;
+	char buffer[1000] = {0};
+	sprintf(buffer, "FOUND_Kcr_KP=%f.csv", Prop);
+	strcpy(filename, buffer);
+	fp = fopen(filename, "w");
+	fprintf(fp, "time;Angle;\n");
+	fclose(fp);
+	gettimeofday(&start_kcr, NULL);
+#endif
 	err = pthread_create(&threadPID_t, &threadPID_attr, thread_PID, NULL);
 
 	if( err ==0)
@@ -112,35 +158,23 @@ void PowerRelayOFF(){
 
 void setSensRotation(T_ROTATION_SENS sensRotation)
 {
-	if(1)//sensRotation != CurrentSensRotation)
+	//Activation des pins
+	switch(sensRotation)
 	{
-		/*TODO: (voir si c'est la bonne méthode) l'idee ici c est de s assurer que le moteur est bien
-		 * arrete avant de changer de sens de rotation pour ne pas endommager l electronique*/
-		//int temp_c = C;
-		//C = 0; //Mise de la consigne à 0
-		/*while(i_measure != 0); //Attendre l'arrête du moteur
-		CurrentSensRotation = sensRotation;//Sauvegarde du nouveau sens de rotation
-		*/
-		//Activation des pins
-		switch(sensRotation)
-		{
-		case E_SENS_DEFAULT:
-			digitalWrite(C_PIN_SENS_ROT1, LOW);
-			digitalWrite(C_PIN_SENS_ROT2, LOW);
-			break;
-		case E_SENS_HORAIRE:
-			digitalWrite(C_PIN_SENS_ROT1, LOW);
-			digitalWrite(C_PIN_SENS_ROT2, HIGH);
-			break;
-		case E_SENS_ANTI_HORAIRE:
-			digitalWrite(C_PIN_SENS_ROT1, HIGH);
-			digitalWrite(C_PIN_SENS_ROT2, LOW);
-			break;
-		}
-		CurrentSensRotation =  sensRotation;
-
-		//C = temp_c; //Faire tourner à la même vitesse qu'avant dans l autre sens
+	case E_SENS_DEFAULT:
+		digitalWrite(C_PIN_SENS_ROT1, LOW);
+		digitalWrite(C_PIN_SENS_ROT2, LOW);
+		break;
+	case E_SENS_HORAIRE:
+		digitalWrite(C_PIN_SENS_ROT1, LOW);
+		digitalWrite(C_PIN_SENS_ROT2, HIGH);
+		break;
+	case E_SENS_ANTI_HORAIRE:
+		digitalWrite(C_PIN_SENS_ROT1, HIGH);
+		digitalWrite(C_PIN_SENS_ROT2, LOW);
+		break;
 	}
+	CurrentSensRotation =  sensRotation;
 }
 
 void setConsigne(int consigne)
@@ -150,10 +184,15 @@ void setConsigne(int consigne)
 	//mutex
 }
 
+
+float p = 0;
+float i = 0;
+float d = 0;
+float pid = 0;
+
 void Calcul()
 {
 	//kp = 0.02 : stabilitsation
-	float kp = 0.045;
 	float epsilon;
 	int errors = readAngle(&i_measure);
 
@@ -161,42 +200,47 @@ void Calcul()
 	{
 		//TODO : Handle errors. On arrête la régulation pour une erreur de transmit ?
 		MCC_Status &=~ C_STATUS_COMMUNICATION_ON;
-		//Si arrêt de la régu : // MCC_Status &=~ C_STATUS_REGULATION_ON;
+		//Si arrêt de la régu : MCC_Status &=~ C_STATUS_REGULATION_ON;
 		std::cout<< "[DEBUG] ERROR IN COM : " << errors << std::endl;
-
 	}
 	else
 	{
+#ifdef LOG_MEASURE
+		gettimeofday(&stop_kcr, NULL);
+		int diff = (stop_kcr.tv_sec - start_kcr.tv_sec) * 1000000 + stop_kcr.tv_usec - start_kcr.tv_usec;
+		char buff[20] = {0};
+		sprintf(buff,"%d;%d\n",diff,i_measure);
+		FILE* fp;
+		fp = fopen(filename, "a");
+		fprintf(fp, buff);
+		fclose(fp);
+#endif
 
 		epsilon = C - (float)i_measure;	//Calcul de l'erreur
+		p = Kp*epsilon;
+		i = (i + epsilon);
+		d = epsilon-E_before;
 
-		u = epsilon * kp;
-		//std::cout<<"[DEBUG] consigne = " << C << "\t i_measure = " << i_measure << "\t u = " << u <<std::endl;
-		std::cout<<i_measure<<std::endl;
+		pid = p + i*Ki + d*Kd;
 
-		if(u < 0)
+		E_before = epsilon;
+		u = pid;
+
+		std::cout<<"[DEBUG] consigne = " << C << "\t i_measure = " << i_measure << "\t commande = " << pid <<std::endl;
+
+		if(pid < 0)
 		{
-			if(u<-1){u=-1.0;}
-			setSensRotation(E_SENS_HORAIRE);
-			pwmWrite(ipin_MLI, -(u*MAX_PWM));
+			if(pid<-1){pid=-1.0;}
+			setSensRotation(E_SENS_ANTI_HORAIRE);
+			pwmWrite(ipin_MLI, -(pid*MAX_PWM));
 		}
 		else
 		{
-			if(u>1){u=1.0;}
-			setSensRotation(E_SENS_ANTI_HORAIRE);
-			pwmWrite(ipin_MLI, u*MAX_PWM);
+			if(pid>1){pid=1.0;}
+			setSensRotation(E_SENS_HORAIRE);
+			pwmWrite(ipin_MLI, pid*MAX_PWM);
 		}
-
-		/*u = u + B0*E + B1*E_before + B2*E2_before; //Calcul de la commande
-
-		E2_before = E_before;		//définition de l'erreur avant la précédente
-		E_before = E;				//définition de l'erreur précédente
-		//std::cout << "Commande u = " << u << std::endl;
-		*/
-
-
 		MCC_Status |= C_STATUS_COMMUNICATION_ON;
-
 	}
 }
 
@@ -217,7 +261,7 @@ void* thread_PID(void* x)
 	while(1)
 	{
 		Calcul();
-		usleep(H*1000);
+		usleep(dt*1000);
 		pthread_testcancel();
 	}
 	return 0;

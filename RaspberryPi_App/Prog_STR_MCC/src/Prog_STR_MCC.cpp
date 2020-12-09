@@ -57,11 +57,19 @@ void initSignalHandler()
 	}
 }
 
-int main()
+int main(int argc,char *argv[] )
 {
 	//int i = 0;
 	int PID;
 	sched_param schedparam;
+
+#ifdef LOG_MEASURE
+	float kpt;
+	if(argc > 1)
+		kpt = atof(argv[1]);  // alternative strtod
+	else
+		kpt = 0.02;
+#endif
 	PID = getpid();
 
 	/*HIGH PRIORITY AND SCHED FIFO*/
@@ -78,7 +86,11 @@ int main()
 	std::cout << "[INFO] SERIAL initialized"<< std::endl;
 
 
+#ifdef LOG_MEASURE
+	int err = initPID_Thread(C_PIN_MLI,kpt);
+#else
 	int err = initPID_Thread(C_PIN_MLI);
+#endif
 	if(err == 0)
 		std::cout << "[INFO] THREAD REGULATION initialized"<< std::endl;
 	else
@@ -90,7 +102,7 @@ int main()
 	setConsigne(180);
 
 	// SIGTERM est jamais intercepté ! donc pour terminer le pgrm proprement en attendant...
-	sleep(10);
+	sleep(120);
 	terminerProgramme();
 
 	while(1)//loop forever
