@@ -92,19 +92,19 @@ void* thread_Communication(void*)
 		if( (read_size = recv(client_sock , data , size , MSG_DONTWAIT)) > 0 )
 		{
 			//TODO ajouter des vérifications sur la lecture de C
-			//TODO : mutex ?
-			C = *((int*)data);//atoi(data);
-			std::cout<<"data:"<<data<<std::endl;
+
+			setConsigne(*(int*)data);
+			//std::cout<<"data:"<<data<<std::endl;
 		}
 		else if(read_size == 0)
 		{
-			puts("[WARNING] Client disconnected");
+			//puts("[WARNING] Client disconnected");
 			client_sock = accept(socket_desc, (struct sockaddr *)&client, (socklen_t*)&c);
 			while(client_sock < 0)
 			{
 				client_sock = accept(socket_desc, (struct sockaddr *)&client, (socklen_t*)&c);
 			}
-			std::cout<<"[INFO] Client reconnected"<<std::endl;
+			//std::cout<<"[INFO] Client reconnected"<<std::endl;
 
 		}
 		else if(read_size == -1)
@@ -117,12 +117,14 @@ void* thread_Communication(void*)
 		//std::cout<<difftime<<std::endl;
 		if(difftime > 100000)
 		{
-			sprintf(buffer, "%d;%d", i_measure, MCC_Status); //TODO  \0 ?
+			int measure = getMCCAngle();
+			int status = getMCCStatus();
+			sprintf(buffer, "%d;%d", measure, status); //TODO  \0 ?
 			write(client_sock, buffer , strlen(buffer));
 			gettimeofday(&start, NULL);
 		}
 
-
+		usleep(1);
 
 		pthread_testcancel();
     }

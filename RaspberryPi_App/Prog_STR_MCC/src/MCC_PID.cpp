@@ -51,14 +51,7 @@
 #define C_STATUS_COMMUNICATION_ON	1<<1
 #define C_STATUS_ANALOG_SUPPLY_ON	1<<2
 #define C_STATUS_LOGIC_SUPPLY_ON	1<<3
-
-/*
-//Constantes multiplicatives dépendant de la
-//fréquence, du gain d'intégrale Ti et dérivée Td
-#define B0 Tp * ( (H/(2*Ti)) + (Td/H) + 1 )
-#define B1 Tp * ( (H/(2*Ti)) - (2*Td/H) - 1 )
-#define B2 Tp * Td / H
-*/
+#define C_STATUS_ALL_ON				0xFF //Clear or set all flags
 
 /* GLOBAL VARIABLES */
 int C = 0;
@@ -79,6 +72,14 @@ int ipin_MLI;
 int i_measure;
 int MCC_Status;
 
+pthread_mutex_t mutex_MCCAngle;
+pthread_mutex_t mutex_MCCStatus;
+pthread_mutex_t mutex_MCCConsigne;
+
+pthread_mutexattr_t mutex_MCCAngle_attr;
+pthread_mutexattr_t mutex_MCCStatus_attr;
+pthread_mutexattr_t mutex_MCCConsigne_attr;
+
 //TODO Remove after found Kcr
 #ifdef LOG_MEASURE
 static float GainProp = 0.0;
@@ -93,20 +94,10 @@ int initPID_Thread(int pin_MLI, float Prop)
 #else
 int initPID_Thread(int pin_MLI)
 #endif
-
 {
 	int err = 0;
 	ipin_MLI = pin_MLI;
-	MCC_Status = 0xFF;
-	MCC_Status &=~ C_STATUS_COMMUNICATION_ON;
-
-	//std::cout<<kpt<<"  "<<kp<<std::endl;
-
-	time_t rawtime;
-	struct tm * timeinfo;
-	time ( &rawtime );
-	timeinfo = localtime ( &rawtime );
-	//printf ( "Current local time and date: %s", asctime (timeinfo) );
+	SetMCCStatusFlag(C_STATUS_ALL_ON, false);
 
 #ifdef LOG_MEASURE
 	GainProp = Prop;
@@ -118,6 +109,15 @@ int initPID_Thread(int pin_MLI)
 	fclose(fp);
 	gettimeofday(&start_kcr, NULL);
 #endif
+
+	mutex_MCCConsigne = PTHREAD_MUTEX_INITIALIZER;
+	mutex_MCCStatus = PTHREAD_MUTEX_INITIALIZER;
+	mutex_MCCAngle = PTHREAD_MUTEX_INITIALIZER;
+	pthread_mutex_init(&mutex_MCCConsigne, &mutex_MCCConsigne_attr);
+	pthread_mutex_init(&mutex_MCCStatus, &mutex_MCCStatus_attr);
+	pthread_mutex_init(&mutex_MCCAngle, &mutex_MCCAngle_attr);
+
+
 	err = pthread_create(&threadPID_t, &threadPID_attr, thread_PID, NULL);
 
 	if( err ==0)
@@ -138,22 +138,22 @@ int initPID_Thread(int pin_MLI)
 
 void LogicRelayON(){
 	digitalWrite(C_PIN_RELAY_LOGIC, LOW);
-	MCC_Status |= C_STATUS_LOGIC_SUPPLY_ON;
+	SetMCCStatusFlag(C_STATUS_LOGIC_SUPPLY_ON, true);
 }
 
 void LogicRelayOFF(){
 	digitalWrite(C_PIN_RELAY_LOGIC, HIGH);
-	MCC_Status &=~ C_STATUS_LOGIC_SUPPLY_ON;
+	SetMCCStatusFlag(C_STATUS_LOGIC_SUPPLY_ON, false);
 }
 
 void PowerRelayON(){
 	digitalWrite(C_PIN_RELAY_POWER, LOW);
-	MCC_Status |= C_STATUS_ANALOG_SUPPLY_ON;
+	SetMCCStatusFlag(C_STATUS_ANALOG_SUPPLY_ON, true);
 }
 
 void PowerRelayOFF(){
 	digitalWrite(C_PIN_RELAY_POWER, HIGH);
-	MCC_Status &=~ C_STATUS_ANALOG_SUPPLY_ON;
+	SetMCCStatusFlag(C_STATUS_ANALOG_SUPPLY_ON, false);
 }
 
 void setSensRotation(T_ROTATION_SENS sensRotation)
@@ -177,13 +177,60 @@ void setSensRotation(T_ROTATION_SENS sensRotation)
 	CurrentSensRotation =  sensRotation;
 }
 
+int getConsigne()
+{
+	int consigne;
+	pthread_mutex_lock(&mutex_MCCConsigne);
+	consigne = C;
+	pthread_mutex_unlock(&mutex_MCCConsigne);
+	return consigne;
+}
 void setConsigne(int consigne)
 {
-	//todo mutex
+	pthread_mutex_lock(&mutex_MCCConsigne);
 	C = consigne;
-	//mutex
+	pthread_mutex_unlock(&mutex_MCCConsigne);
 }
 
+int getMCCStatus()
+{
+	int status;
+	pthread_mutex_lock(&mutex_MCCStatus);
+	//todo mutex
+	status = MCC_Status;
+	pthread_mutex_unlock(&mutex_MCCStatus);
+	//mutex
+	return status;
+}
+
+void SetMCCStatusFlag(int flag, bool value)
+{
+	pthread_mutex_lock(&mutex_MCCStatus);
+	//todo mutex
+	if(value)
+		MCC_Status |=  flag;
+	else
+		MCC_Status &=~ flag;
+	pthread_mutex_unlock(&mutex_MCCStatus);
+	//TODO mutex
+}
+
+int getMCCAngle()
+{
+	int measure;
+	pthread_mutex_lock(&mutex_MCCAngle);
+	measure = i_measure;
+	pthread_mutex_unlock(&mutex_MCCAngle);
+	return measure;
+}
+
+void setMCCAngle(int angle)
+{
+	pthread_mutex_lock(&mutex_MCCAngle);
+	i_measure = angle;
+	pthread_mutex_unlock(&mutex_MCCAngle);
+
+}
 
 float p = 0;
 float i = 0;
@@ -199,7 +246,7 @@ void Calcul()
 	if(errors)
 	{
 		//TODO : Handle errors. On arrête la régulation pour une erreur de transmit ?
-		MCC_Status &=~ C_STATUS_COMMUNICATION_ON;
+		SetMCCStatusFlag(C_STATUS_COMMUNICATION_ON, false);
 		//Si arrêt de la régu : MCC_Status &=~ C_STATUS_REGULATION_ON;
 		std::cout<< "[DEBUG] ERROR IN COM : " << errors << std::endl;
 	}
@@ -215,8 +262,9 @@ void Calcul()
 		fprintf(fp, buff);
 		fclose(fp);
 #endif
-
-		epsilon = C - (float)i_measure;	//Calcul de l'erreur
+		float consigne = (float)getConsigne();
+		float measure = (float)getMCCAngle();
+		epsilon = consigne - (float)measure;	//Calcul de l'erreur
 		p = Kp*epsilon;
 		i = (i + epsilon);
 		d = epsilon-E_before;
@@ -226,7 +274,7 @@ void Calcul()
 		E_before = epsilon;
 		u = pid;
 
-		std::cout<<"[DEBUG] consigne = " << C << "\t i_measure = " << i_measure << "\t commande = " << pid <<std::endl;
+		std::cout<<"[DEBUG] consigne = " << consigne << "\t i_measure = " << measure << "\t commande = " << pid <<std::endl;
 
 		if(pid < 0)
 		{
@@ -240,7 +288,7 @@ void Calcul()
 			setSensRotation(E_SENS_HORAIRE);
 			pwmWrite(ipin_MLI, pid*MAX_PWM);
 		}
-		MCC_Status |= C_STATUS_COMMUNICATION_ON;
+		SetMCCStatusFlag(C_STATUS_COMMUNICATION_ON,true);
 	}
 }
 
@@ -257,7 +305,8 @@ void* thread_PID(void* x)
 	PowerRelayON();
 	std::cout << "[INFO] PowerRelay is ON"<< std::endl;
 	//sleep(2);
-	MCC_Status |= C_STATUS_REGULATION_ON;
+
+	SetMCCStatusFlag(C_STATUS_REGULATION_ON, true);
 	while(1)
 	{
 		Calcul();
@@ -274,6 +323,9 @@ int stopPID_Regulation()
 	digitalWrite(C_PIN_SENS_ROT2, LOW);
 	PowerRelayOFF();
 	LogicRelayOFF();
+	pthread_mutex_destroy(&mutex_MCCConsigne);
+	pthread_mutex_destroy(&mutex_MCCAngle);
+	pthread_mutex_destroy(&mutex_MCCStatus);
 	pthread_cancel(threadPID_t);
 	pthread_join(threadPID_t, NULL);
 	//TODO : ajouter la valeur de retour du cancel.
