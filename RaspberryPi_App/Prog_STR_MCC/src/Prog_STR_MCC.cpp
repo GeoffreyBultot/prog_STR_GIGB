@@ -52,8 +52,8 @@ void initSignalHandler()
 	signalAction.sa_handler = &generalSignalHandler;
 	// Interception de SIGTEM uniquement
 
-	if (sigaction(SIGTERM, &signalAction, NULL) == -1){ // si erreur
-		std::cerr << "Impossible d'intercepter SIGTERM !" << std::endl;
+	if (sigaction(SIGINT, &signalAction, NULL) == -1){ // si erreur
+		std::cerr << "Impossible d'intercepter SIGINT!" << std::endl;
 	}
 }
 
@@ -91,19 +91,31 @@ int main(int argc,char *argv[] )
 #else
 	int err = initPID_Thread(C_PIN_MLI);
 #endif
-	if(err == 0)
-		std::cout << "[INFO] THREAD REGULATION initialized"<< std::endl;
-	else
+	if(err)
+	{
 		std::cout << "[INFO] THREAD REGULATION not started ERROR VALUE: "<< err << std::endl;
-
-	//TODO: erreur thread com
-	err = initCOM_Thread();
-	setSensRotation(E_SENS_DEFAULT);
-	setConsigne(180);
-
+		terminerProgramme();
+	}
+	else
+	{
+		std::cout << "[INFO] THREAD REGULATION initialized"<< std::endl;
+		//TODO: erreur thread com
+		err = initCOM_Thread();
+		if(err)
+		{
+			std::cout<<"[ERROR] COM THREAD NOT STARTED error : " << err <<std::endl;
+			terminerProgramme();
+		}
+		else
+		{
+			setSensRotation(E_SENS_DEFAULT);
+			setConsigne(180);
+		}
+	}
 	// SIGTERM est jamais intercepté ! donc pour terminer le pgrm proprement en attendant...
-	sleep(120);
-	terminerProgramme();
+	//GB : Par contre SIGINT est intercepté lors d'une exécution en console ;)
+	//sleep(5);
+	//terminerProgramme();
 
 	while(1)//loop forever
 	{

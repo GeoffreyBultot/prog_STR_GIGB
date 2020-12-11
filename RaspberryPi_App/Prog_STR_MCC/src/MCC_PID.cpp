@@ -26,20 +26,23 @@
 #define CLOCK_PWM 4096	//CLOCK PWM (between 0 TO 4094) //TODO savoir la fréquence exacte
 
 //NICHOLS ZIEGLER //TODO
-#define Kcr		0.14
-#define Tcr		74.653
+#define Kcr		0.04
+#define Tcr		487.90
 
 #define dt	4.77			//Période ech en mS //5 = 210Hz
 #define invdt 1/dt
+
 
 /*
 #define Kp  Kcr*0.6			//Gain proportionnel
 #define Ti  Tcr*0.5 		//Gain intégrale
 #define Td  Tcr*0.125		//Gain dérivée
 */
+
+
 #define Kp 0.01
 #define Ti 1000000
-#define Td 99999999999999
+#define Td 0
 
 #define Ki	1/Ti
 #define Kd	1/Td
@@ -61,6 +64,11 @@ float E_before = 0;	//Erreur précedente
 float E2_before = 0;	//Erreur avant la précédente
 float M = 0;			//Mesure
 
+float p = 0;
+float i = 0;
+float d = 0;
+float pid = 0;
+
 T_ROTATION_SENS CurrentSensRotation=E_SENS_DEFAULT;
 
 /* PROTOTYPES*/
@@ -75,10 +83,12 @@ int MCC_Status;
 pthread_mutex_t mutex_MCCAngle;
 pthread_mutex_t mutex_MCCStatus;
 pthread_mutex_t mutex_MCCConsigne;
+pthread_mutex_t mutex_PIDCommand;
 
 pthread_mutexattr_t mutex_MCCAngle_attr;
 pthread_mutexattr_t mutex_MCCStatus_attr;
 pthread_mutexattr_t mutex_MCCConsigne_attr;
+pthread_mutexattr_t mutex_PIDCommand_attr;
 
 //TODO Remove after found Kcr
 #ifdef LOG_MEASURE
@@ -113,9 +123,11 @@ int initPID_Thread(int pin_MLI)
 	mutex_MCCConsigne = PTHREAD_MUTEX_INITIALIZER;
 	mutex_MCCStatus = PTHREAD_MUTEX_INITIALIZER;
 	mutex_MCCAngle = PTHREAD_MUTEX_INITIALIZER;
+	mutex_PIDCommand = PTHREAD_MUTEX_INITIALIZER;
 	pthread_mutex_init(&mutex_MCCConsigne, &mutex_MCCConsigne_attr);
 	pthread_mutex_init(&mutex_MCCStatus, &mutex_MCCStatus_attr);
 	pthread_mutex_init(&mutex_MCCAngle, &mutex_MCCAngle_attr);
+	pthread_mutex_init(&mutex_PIDCommand, &mutex_PIDCommand_attr);
 
 
 	err = pthread_create(&threadPID_t, &threadPID_attr, thread_PID, NULL);
@@ -196,23 +208,19 @@ int getMCCStatus()
 {
 	int status;
 	pthread_mutex_lock(&mutex_MCCStatus);
-	//todo mutex
 	status = MCC_Status;
 	pthread_mutex_unlock(&mutex_MCCStatus);
-	//mutex
 	return status;
 }
 
 void SetMCCStatusFlag(int flag, bool value)
 {
 	pthread_mutex_lock(&mutex_MCCStatus);
-	//todo mutex
 	if(value)
 		MCC_Status |=  flag;
 	else
 		MCC_Status &=~ flag;
 	pthread_mutex_unlock(&mutex_MCCStatus);
-	//TODO mutex
 }
 
 int getMCCAngle()
@@ -232,10 +240,22 @@ void setMCCAngle(int angle)
 
 }
 
-float p = 0;
-float i = 0;
-float d = 0;
-float pid = 0;
+float getPIDCommand()
+{
+	float command;
+	pthread_mutex_lock(&mutex_PIDCommand);
+	command = pid;
+	pthread_mutex_unlock(&mutex_PIDCommand);
+	return command;
+}
+
+void setPIDCommand(float command)
+{
+	pthread_mutex_lock(&mutex_PIDCommand);
+	pid = command;
+	pthread_mutex_unlock(&mutex_PIDCommand);
+}
+
 
 void Calcul()
 {
@@ -248,7 +268,7 @@ void Calcul()
 		//TODO : Handle errors. On arrête la régulation pour une erreur de transmit ?
 		SetMCCStatusFlag(C_STATUS_COMMUNICATION_ON, false);
 		//Si arrêt de la régu : MCC_Status &=~ C_STATUS_REGULATION_ON;
-		std::cout<< "[DEBUG] ERROR IN COM : " << errors << std::endl;
+		//std::cout<< "[DEBUG] ERROR IN COM : " << errors << std::endl;
 	}
 	else
 	{
@@ -262,31 +282,39 @@ void Calcul()
 		fprintf(fp, buff);
 		fclose(fp);
 #endif
+
 		float consigne = (float)getConsigne();
 		float measure = (float)getMCCAngle();
+
 		epsilon = consigne - (float)measure;	//Calcul de l'erreur
 		p = Kp*epsilon;
 		i = (i + epsilon);
 		d = epsilon-E_before;
 
-		pid = p + i*Ki + d*Kd;
-
+		float localpid  = p + i*Ki + d*Td;
 		E_before = epsilon;
-		u = pid;
 
-		std::cout<<"[DEBUG] consigne = " << consigne << "\t i_measure = " << measure << "\t commande = " << pid <<std::endl;
+		/*i+= Ki*epsilon;
+		float localpid  = Kp*epsilon+i - Ki*(epsilon-E_before);
+		E_before = epsilon;
+		*/
 
-		if(pid < 0)
+		setPIDCommand(localpid);
+
+		//std::cout<<"[DEBUG] consigne = " << consigne << "\t i_measure = " << measure << "\t commande = " << localpid <<std::endl;
+		//std::cout<<"[DEBUG] p = " << p << "\t i = " << i << "\t d = " << d <<std::endl;
+
+		if(localpid < 0)
 		{
-			if(pid<-1){pid=-1.0;}
+			if(pid<-1){localpid=-1.0;}
 			setSensRotation(E_SENS_ANTI_HORAIRE);
-			pwmWrite(ipin_MLI, -(pid*MAX_PWM));
+			pwmWrite(ipin_MLI, -(localpid*MAX_PWM));
 		}
 		else
 		{
-			if(pid>1){pid=1.0;}
+			if(localpid>1){localpid=1.0;}
 			setSensRotation(E_SENS_HORAIRE);
-			pwmWrite(ipin_MLI, pid*MAX_PWM);
+			pwmWrite(ipin_MLI, localpid*MAX_PWM);
 		}
 		SetMCCStatusFlag(C_STATUS_COMMUNICATION_ON,true);
 	}

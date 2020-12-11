@@ -35,7 +35,7 @@ void SetMCCStatusFlag(int flag, bool value);
 int getMCCAngle();
 void setMCCAngle(int angle);
 
-
-
+float getPIDCommand();
+void setPIDCommand(float command);
 
 #endif

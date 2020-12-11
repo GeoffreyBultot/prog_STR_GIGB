@@ -6,6 +6,7 @@
 #include "unistd.h"
 #include <wiringPi.h>
 #include <math.h>
+#include "sys/time.h"
 #include "MODULES_DEFINE.hpp"
 
 int iTxPin;
@@ -40,6 +41,9 @@ int readAngle(int* angle)
 	unsigned int j;
 	int currentByte = 0;
 	bool currentbit;
+	struct timeval timeout_second, timeout_first;
+	int diff = 0;
+
 
 	int ErrorReg = 0;
 	//TODO ADD FALLING EDGE DETECTION
@@ -54,10 +58,13 @@ int readAngle(int* angle)
 		digitalWrite(iTxPin, LOW);
 		//Waiting com from Nucleo
 
-		int start_timeout = time(NULL);
 		//TODO DIMINUER CE TEMPS
+		gettimeofday(&timeout_first,NULL);
 		while(digitalRead(iRxPin) != LOW){
-			if(difftime(time(NULL), start_timeout) >= 1){
+			gettimeofday(&timeout_second,NULL);
+			diff = (timeout_second.tv_sec - timeout_first.tv_sec) * 1000000 + timeout_second.tv_usec - timeout_first.tv_usec;
+			if( diff >= 10000) //10ms
+			{
 				//std::cout<<"[DEBUG] NUCLEO DETECTED BUT NOT RESPONDING"<<std::endl;
 				ErrorReg = 3;
 			}
