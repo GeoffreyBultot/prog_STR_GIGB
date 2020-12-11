@@ -1,0 +1,18 @@
+D:\geoff\OneDrive - Haute Ecole Bruxelles Brabant (HE2B)\Ecole 2020 - 2021\PROG_STR_APP\MotorGesture_GIGB\MotorGesture_GIGB\bin\Debug\MotorGesture_GIGB.exe.config
+D:\geoff\OneDrive - Haute Ecole Bruxelles Brabant (HE2B)\Ecole 2020 - 2021\PROG_STR_APP\MotorGesture_GIGB\MotorGesture_GIGB\bin\Debug\MotorGesture_GIGB.exe
+D:\geoff\OneDrive - Haute Ecole Bruxelles Brabant (HE2B)\Ecole 2020 - 2021\PROG_STR_APP\MotorGesture_GIGB\MotorGesture_GIGB\bin\Debug\MotorGesture_GIGB.pdb
+D:\geoff\OneDrive - Haute Ecole Bruxelles Brabant (HE2B)\Ecole 2020 - 2021\PROG_STR_APP\MotorGesture_GIGB\MotorGesture_GIGB\obj\Debug\MotorGesture_GIGB.csprojAssemblyReference.cache
+D:\geoff\OneDrive - Haute Ecole Bruxelles Brabant (HE2B)\Ecole 2020 - 2021\PROG_STR_APP\MotorGesture_GIGB\MotorGesture_GIGB\obj\Debug\MotorGesture_GIGB.Form1.resources
+D:\geoff\OneDrive - Haute Ecole Bruxelles Brabant (HE2B)\Ecole 2020 - 2021\PROG_STR_APP\MotorGesture_GIGB\MotorGesture_GIGB\obj\Debug\MotorGesture_GIGB.Properties.Resources.resources
+D:\geoff\OneDrive - Haute Ecole Bruxelles Brabant (HE2B)\Ecole 2020 - 2021\PROG_STR_APP\MotorGesture_GIGB\MotorGesture_GIGB\obj\Debug\MotorGesture_GIGB.csproj.GenerateResource.cache
+D:\geoff\OneDrive - Haute Ecole Bruxelles Brabant (HE2B)\Ecole 2020 - 2021\PROG_STR_APP\MotorGesture_GIGB\MotorGesture_GIGB\obj\Debug\MotorGesture_GIGB.exe
+D:\geoff\OneDrive - Haute Ecole Bruxelles Brabant (HE2B)\Ecole 2020 - 2021\PROG_STR_APP\MotorGesture_GIGB\MotorGesture_GIGB\obj\Debug\MotorGesture_GIGB.pdb
+D:\geoff\Documents\MotorGesture_GIGB\MotorGesture_GIGB\bin\Debug\MotorGesture_GIGB.exe.config
+D:\geoff\Documents\MotorGesture_GIGB\MotorGesture_GIGB\bin\Debug\MotorGesture_GIGB.exe
+D:\geoff\Documents\MotorGesture_GIGB\MotorGesture_GIGB\bin\Debug\MotorGesture_GIGB.pdb
+D:\geoff\Documents\MotorGesture_GIGB\MotorGesture_GIGB\obj\Debug\MotorGesture_GIGB.csprojAssemblyReference.cache
+D:\geoff\Documents\MotorGesture_GIGB\MotorGesture_GIGB\obj\Debug\MotorGesture_GIGB.Form1.resources
+D:\geoff\Documents\MotorGesture_GIGB\MotorGesture_GIGB\obj\Debug\MotorGesture_GIGB.Properties.Resources.resources
+D:\geoff\Documents\MotorGesture_GIGB\MotorGesture_GIGB\obj\Debug\MotorGesture_GIGB.csproj.GenerateResource.cache
+D:\geoff\Documents\MotorGesture_GIGB\MotorGesture_GIGB\obj\Debug\MotorGesture_GIGB.exe
+D:\geoff\Documents\MotorGesture_GIGB\MotorGesture_GIGB\obj\Debug\MotorGesture_GIGB.pdb
