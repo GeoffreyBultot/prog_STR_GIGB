@@ -54,8 +54,8 @@ all: main-build
 main-build: Prog_STR_MCC.elf secondary-outputs
 
 # Tool invocations
-Prog_STR_MCC.elf: $(OBJS) $(USER_OBJS) C:\Users\delta\Documents\GitHub\prog_STR_GIGB\STM32_APP\Prog_STR_MCC\STM32F072RBTX_FLASH.ld
-	arm-none-eabi-gcc -o "Prog_STR_MCC.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m0 -T"C:\Users\delta\Documents\GitHub\prog_STR_GIGB\STM32_APP\Prog_STR_MCC\STM32F072RBTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="Prog_STR_MCC.map" -Wl,--gc-sections -static --specs=nano.specs -mfloat-abi=soft -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+Prog_STR_MCC.elf: $(OBJS) $(USER_OBJS) D:\geoff\Documents\progSTR_Last\prog_STR_GIGB\STM32_APP\Prog_STR_MCC\STM32F072RBTX_FLASH.ld
+	arm-none-eabi-gcc -o "Prog_STR_MCC.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m0 -T"D:\geoff\Documents\progSTR_Last\prog_STR_GIGB\STM32_APP\Prog_STR_MCC\STM32F072RBTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="Prog_STR_MCC.map" -Wl,--gc-sections -static --specs=nano.specs -mfloat-abi=soft -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

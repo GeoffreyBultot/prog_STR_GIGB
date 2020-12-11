@@ -34,15 +34,13 @@
 /* USER CODE BEGIN PD */
 #define C_N_BITS 			(8)
 #define C_N_BYTES_DATA 		(sizeof(int))
-#define C_N_BYTES_TOT		(C_N_BYTES_DATA+3)	// 1 byte start + (4) de data + 1 byte checksum + 1 byte stop = 7
+#define C_N_BYTES_TOT		(C_N_BYTES_DATA+1)	// 1 byte start + (4) de data + 1 byte checksum + 1 byte stop = 7
 
-#define C_POS_START_BYTE 	(0)
-#define C_POS_FIRST_DATA 	(1)
-#define C_POS_CHECKSUM		(C_N_BYTES_TOT-2)
-#define C_POS_STOP_BYTE 	(C_N_BYTES_TOT-1)
+#define C_POS_FIRST_DATA 	(0)
+#define C_POS_CHECKSUM		(C_N_BYTES_TOT-1)
 
-#define C_START_BYTE		(0xF4)
-#define C_STOP_BYTE			(0xAA)
+//#define C_START_BYTE		(0xF4)
+//#define C_STOP_BYTE			(0xAA)
 
 //#define CONVERSION_PULSE_TO_DEGREE 1			// Gearbox ratio 1:30 --> 1 output shaft = 30 little gear rotation (LGR)
 												// 2 hall sensors
@@ -56,6 +54,8 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+TIM_HandleTypeDef htim2;
+
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
@@ -81,6 +81,7 @@ unsigned char checksum = 0;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
+static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -110,8 +111,8 @@ int main(void)
   for(int i=0; i<C_N_BYTES_TOT; i++){
 	  bToSend[i] = 0x00;
   }
-  bToSend[C_POS_START_BYTE] = C_START_BYTE;
-  bToSend[C_POS_STOP_BYTE] = C_STOP_BYTE;
+//  bToSend[C_POS_START_BYTE] = C_START_BYTE;
+//  bToSend[C_POS_STOP_BYTE] = C_STOP_BYTE;
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -124,10 +125,11 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART2_UART_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
   // done in gpio init so config in the .ioc
   //HAL_GPIO_WritePin(TX_GPIO_Port, TX_Pin, GPIO_PIN_SET);
-
+  //HAL_TIM_Base_Start_IT(&htim2);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -192,6 +194,51 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief TIM2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM2_Init(void)
+{
+
+  /* USER CODE BEGIN TIM2_Init 0 */
+
+  /* USER CODE END TIM2_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM2_Init 1 */
+
+  /* USER CODE END TIM2_Init 1 */
+  htim2.Instance = TIM2;
+  htim2.Init.Prescaler = 47999;
+  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim2.Init.Period = 50;
+  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM2_Init 2 */
+
+  /* USER CODE END TIM2_Init 2 */
+
 }
 
 /**
@@ -315,13 +362,16 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 				 */
 				// set is_sending flag
 				is_sending = 1;
+				//Start interrupt for timeout on communication
+				HAL_TIM_Base_Start_IT(&htim2);
+			    HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 
 				// set pin on rising edge
 				GPIO_InitStruct_RX.Mode = GPIO_MODE_IT_RISING;
 				HAL_GPIO_Init(RX_GPIO_Port, &GPIO_InitStruct_RX);
 
 				// Debug LED set : rising edge mode notifier
-				HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
+				//HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
 
 				// Reset bit & byte counters
 				tx_bit_sending = 0;
@@ -330,7 +380,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 				// NB cannot move in main because it HAS to be finished before we accept to start communication
 				// Optimisation : reduce to reduce time in this ISR : minimize the nbr of packets to send
 				// prep package to send
-				checksum = (unsigned char) (C_START_BYTE + C_STOP_BYTE);
+				checksum = 0;//(unsigned char) (C_START_BYTE + C_STOP_BYTE);
 				nbr_degrees_to_send = pulse_counter;
 				for(int i = 0; i < C_N_BYTES_DATA; i++){
 					bToSend[C_POS_FIRST_DATA+i] = ((nbr_degrees_to_send >> (i*8)) & 0xFF); //LSB First
@@ -346,6 +396,9 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 				{
 					// clear is_sending flag first
 					is_sending = 0;
+					//Start interrupt for timeout on communication
+					HAL_TIM_Base_Stop_IT(&htim2);
+					htim2.Instance->CNT = 0;
 
 					// tx pin set for ending communication
 					HAL_GPIO_WritePin(TX_GPIO_Port, TX_Pin, GPIO_PIN_SET);
@@ -355,7 +408,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 					HAL_GPIO_Init(RX_GPIO_Port, &GPIO_InitStruct_RX);
 
 					// Debug LED reset : falling edge mode notifier
-					HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+
+					//HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 
 					// prep for start counting from 0 at the end of the communication
 					//counter_Hall_A = 0;
@@ -409,6 +463,33 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 			break;
 	}
 }
+
+
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim)
+{
+    HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
+    // clear is_sending flag first
+    					is_sending = 0;
+    					//Start interrupt for timeout on communication
+    					HAL_TIM_Base_Stop_IT(&htim2);
+    					htim2.Instance->CNT = 0;
+
+    					// tx pin set for ending communication
+    					HAL_GPIO_WritePin(TX_GPIO_Port, TX_Pin, GPIO_PIN_SET);
+
+    					// set pin on falling edge again
+    					GPIO_InitStruct_RX.Mode = GPIO_MODE_IT_FALLING;
+    					HAL_GPIO_Init(RX_GPIO_Port, &GPIO_InitStruct_RX);
+
+    					// Debug LED reset : falling edge mode notifier
+
+    					//HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+
+    					// prep for start counting from 0 at the end of the communication
+    					//counter_Hall_A = 0;
+}
+
 
 /* USER CODE END 4 */
 
