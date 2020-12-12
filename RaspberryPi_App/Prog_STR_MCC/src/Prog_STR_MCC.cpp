@@ -20,6 +20,7 @@
 void terminerProgramme()
 {
 	stopPID_Regulation();
+	usleep(2000000);//to see in interface status changes
 	stopCOM_thread();
 	std::cout<< "termine"<<std::endl;
 	exit(0);
@@ -123,8 +124,8 @@ int main(int argc,char *argv[] )
 	}
 	// SIGTERM est jamais intercepté ! donc pour terminer le pgrm proprement en attendant...
 	//GB : Par contre SIGINT est intercepté lors d'une exécution en console ;)
-	//sleep(2);
-	//terminerProgramme();
+	sleep(5);
+	terminerProgramme();
 
 	while(1)//loop forever
 	{

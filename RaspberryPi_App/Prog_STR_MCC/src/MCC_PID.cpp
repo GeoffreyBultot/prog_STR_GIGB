@@ -262,6 +262,19 @@ void setPIDCommand(float command)
 	pthread_mutex_lock(&mutex_PIDCommand);
 	pid = command;
 	pthread_mutex_unlock(&mutex_PIDCommand);
+	if(command < 0)
+	{
+		if(pid<-1){command=-1.0;}
+		setSensRotation(E_SENS_HORAIRE);
+		pwmWrite(ipin_MLI, -(command*MAX_PWM));
+	}
+	else
+	{
+		if(command>1){command=1.0;}
+		setSensRotation(E_SENS_ANTI_HORAIRE);
+		pwmWrite(ipin_MLI, command*MAX_PWM);
+	}
+
 }
 
 
@@ -269,13 +282,15 @@ void Calcul()
 {
 	//kp = 0.02 : stabilitsation
 	float epsilon;
+	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL); //Cannot cancel thread in communication
 	int errors = readAngle(&i_measure);
-
+	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 	if(errors)
 	{
 		//TODO : Handle errors. On arrête la régulation pour une erreur de transmit ?
 		SetMCCStatusFlag(C_STATUS_COMMUNICATION_ON, false);
-		//Si arrêt de la régu : MCC_Status &=~ C_STATUS_REGULATION_ON;
+		SetMCCStatusFlag(C_STATUS_REGULATION_ON, false);
+		setPIDCommand(0);
 		//std::cout<< "[DEBUG] ERROR IN COM : " << errors << std::endl;
 	}
 	else
@@ -291,35 +306,19 @@ void Calcul()
 		fclose(fp);
 #endif
 
+		SetMCCStatusFlag(C_STATUS_REGULATION_ON, true);
 		float consigne = (float)getConsigne();
 		float measure = (float)getMCCAngle();
-
+		SetMCCStatusFlag(C_STATUS_COMMUNICATION_ON,true);
 		epsilon = consigne - (float)measure;	//Calcul de l'erreur
 		p = Kp*epsilon;
 		i = (i + epsilon);
 		d = epsilon-E_before;
-
 		float localpid  = p + i*Ki + d*Td;
 		E_before = epsilon;
-
 		setPIDCommand(localpid);
-
 		//std::cout<<"[DEBUG] consigne = " << consigne << "\t i_measure = " << measure << "\t commande = " << localpid <<std::endl;
 		//std::cout<<"[DEBUG] p = " << p << "\t i = " << i << "\t d = " << d <<std::endl;
-
-		if(localpid < 0)
-		{
-			if(pid<-1){localpid=-1.0;}
-			setSensRotation(E_SENS_HORAIRE);
-			pwmWrite(ipin_MLI, -(localpid*MAX_PWM));
-		}
-		else
-		{
-			if(localpid>1){localpid=1.0;}
-			setSensRotation(E_SENS_ANTI_HORAIRE);
-			pwmWrite(ipin_MLI, localpid*MAX_PWM);
-		}
-		SetMCCStatusFlag(C_STATUS_COMMUNICATION_ON,true);
 	}
 }
 
@@ -340,7 +339,9 @@ void* thread_PID(void* x)
 	SetMCCStatusFlag(C_STATUS_REGULATION_ON, true);
 	while(1)
 	{
+		std::cout<<"calcul en cours"<<std::endl;
 		Calcul();
+		std::cout<<"sleep en cours"<<std::endl;
 		usleep(dt*1000);
 		pthread_testcancel();
 	}
@@ -349,16 +350,35 @@ void* thread_PID(void* x)
 
 int stopPID_Regulation()
 {
-	pwmWrite(ipin_MLI, 0);
-	digitalWrite(C_PIN_SENS_ROT1, LOW);
-	digitalWrite(C_PIN_SENS_ROT2, LOW);
-	PowerRelayOFF();
-	LogicRelayOFF();
+
 	pthread_mutex_destroy(&mutex_MCCConsigne);
 	pthread_mutex_destroy(&mutex_MCCAngle);
 	pthread_mutex_destroy(&mutex_MCCStatus);
+	pthread_mutex_destroy(&mutex_PIDCommand);
 	int err = pthread_cancel(threadPID_t);
 	pthread_join(threadPID_t, NULL);
+	//Stop MLI AFTER the thread finish. => Si on le fait avant on rique d'avoir mis la pwm à 0 puis que le thread calcule une nouvelle pwm avant de passer sur le cancel thread. (déjà arrivé)
+	pwmWrite(ipin_MLI, 0);
+	setSensRotation(E_SENS_DEFAULT);
+	PowerRelayOFF();
+	LogicRelayOFF();
+	digitalWrite(ipin_MLI, LOW);
+
+	int angleBefore = i_measure + 1; //set angleBefore to a value different to i_measure
+	while(i_measure != angleBefore)
+	{
+		angleBefore = i_measure; //Store angle before
+		usleep(100000); //wait 100ms
+		int errors = readAngle(&i_measure);//Get new angle
+		std::cout<<"[INFO] waiting for the motor stop"<<std::endl;
+		if(errors != 0)
+		{
+			SetMCCStatusFlag(C_STATUS_COMMUNICATION_ON, false);
+			return err; //If error in COM, angle cannot be read. Quit the function. TODO: right way ?
+		}
+	}
+	std::cout<<"[INFO] Motor Stopped"<<std::endl;
+	SetMCCStatusFlag(C_STATUS_REGULATION_ON, false);
 	return err;
 }
 
