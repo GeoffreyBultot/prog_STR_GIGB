@@ -15,7 +15,7 @@ namespace MotorGesture_GIGB
 {
     public partial class Form1 : Form
     {
-        private const int C_OFFSET_TELEMETRIES = 3;
+        private const int C_OFFSET_TELEMETRIES = 4;
         public Client remoteServer;
         IPHostEntry localIP = Dns.Resolve(Dns.GetHostName());
         //TODO change image
@@ -54,8 +54,38 @@ namespace MotorGesture_GIGB
             }
             else
             {
+
+                //string HostName= ;
+
+                //DoGetHostAddresses("bultot-realtime-rpi");
+
+                /*string HostName = Dns.GetHostName().ToString();
+
+                IPAddress[] IpInHostAddress = Dns.GetHostAddresses(HostName);
+
+                string IPV4Address = IpInHostAddress[1].ToString(); //Default IPV4Address. This might be the ip address you need to retrieve
+
+                string IPV6Address = IpInHostAddress[0].ToString(); //Default Link local IPv6 Address
+
                 remoteServer.ClientSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp); ;
-                remoteServer.Connect(txtBox_ServerIP.Text,2600);//localIP.AddressList[0].ToString(), 2600);//"192.168.0.6", 2600);
+                */
+                remoteServer.ClientSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp); ;
+                remoteServer.Connect(txtBox_ServerIP.Text, 2600);//localIP.AddressList[0].ToString(), 2600);//"192.168.0.6", 2600);
+            }
+        }
+
+        public static void DoGetHostAddresses(string hostname)
+        {
+
+            IPAddress[] ips;
+
+            ips = Dns.GetHostAddresses(hostname);
+
+            Console.WriteLine("GetHostAddresses({0}) returns:", hostname);
+
+            foreach (IPAddress ip in ips)
+            {
+                Console.WriteLine("    {0}", ip);
             }
         }
 
@@ -63,7 +93,7 @@ namespace MotorGesture_GIGB
         {
             try
             {
-                int angle = -Int32.Parse(txtBox_Angle.Text);
+                int angle = Int32.Parse(txtBox_Angle.Text);
                 if(remoteServer.ClientSocket.Connected)
                     remoteServer.Send_int(angle);
                 else
@@ -117,7 +147,8 @@ namespace MotorGesture_GIGB
         }
 
 
-      
+
+
         private void printClientInfo(string strReception)
         {
             string[] parsedString = strReception.Split(';');
@@ -127,14 +158,15 @@ namespace MotorGesture_GIGB
             {
                 System.Console.WriteLine($"<{word}>");
             }
-           
 
-            if(parsedString.Length == C_OFFSET_TELEMETRIES+1)
+
+            if (parsedString.Length == C_OFFSET_TELEMETRIES)
             {
-                int angle = -Int32.Parse(parsedString[0]);
+                int angle = Int32.Parse(parsedString[0]);
                 int errorRegister = Int32.Parse(parsedString[1]);
-                int setpoint = -Int32.Parse(parsedString[2]);
+                int setpoint = Int32.Parse(parsedString[2]);
                 int command_received = Int32.Parse(parsedString[3]);
+                int error = setpoint - angle;
                 double realCommand = 0.0;
                 if (command_received > 10000)
                     realCommand = 100.0;
@@ -142,37 +174,63 @@ namespace MotorGesture_GIGB
                     realCommand = -100.0;
                 else
                     realCommand = ((double)command_received) / 100.0;
-                
 
 
                 changeLine(richTextBox1, 0, (setpoint.ToString() + "°"));
                 changeLine(richTextBox1, 1, (angle.ToString() + "°"));
-                changeLine(richTextBox1, 2, (realCommand.ToString()+"%"));
-                 
-                pictBox_Wheel.Image = RotateImage(bitmap, angle, pictBox_Wheel.Width, pictBox_Wheel.Height); ;
+                changeLine(richTextBox1, 2, (error.ToString() + "°"));
+                changeLine(richTextBox1, 3, (realCommand.ToString() + "%"));
+                //Select command line
+                richTextBox1.Select(richTextBox1.GetFirstCharIndexFromLine(3), richTextBox1.Lines[3].Length);
+                if ( Math.Abs(realCommand) > 75 ){richTextBox1.SelectionColor = Color.Red; }
+                else if (Math.Abs(realCommand) > 25 && Math.Abs(realCommand) < 75) { richTextBox1.SelectionColor = Color.Orange; }
+                else {richTextBox1.SelectionColor = Color.Green;}
 
-                int LineCount = 0;
+                //Select angle line
+                richTextBox1.Select(richTextBox1.GetFirstCharIndexFromLine(1), richTextBox1.Lines[1].Length);
+                float errorPercent = 0;
+                if (setpoint == 0)
+                    errorPercent = Math.Abs((float)error);
+                else
+                    errorPercent = Math.Abs((float)error / setpoint);
+
+                Console.WriteLine(errorPercent);
+                if (Math.Abs(errorPercent) > 50) { richTextBox1.SelectionColor = Color.Red; }
+                else if (Math.Abs(errorPercent) > 5 && Math.Abs(errorPercent) < 50) { richTextBox1.SelectionColor = Color.Orange; }
+                else if (Math.Abs(errorPercent) < 4.99) { richTextBox1.SelectionColor = Color.Green; }
+
+                //Select error line
+                richTextBox1.Select(richTextBox1.GetFirstCharIndexFromLine(2), richTextBox1.Lines[2].Length);
+                if (Math.Abs(errorPercent) > 50) { richTextBox1.SelectionColor = Color.Red; }
+                else if (Math.Abs(errorPercent) > 5 && Math.Abs(errorPercent) < 50) { richTextBox1.SelectionColor = Color.Orange; }
+                else if (Math.Abs(errorPercent) < 4.99) { richTextBox1.SelectionColor = Color.Green; }
+
+                pictBox_Wheel.Image = RotateImage(bitmap, angle, pictBox_Wheel.Width, pictBox_Wheel.Height); ;
 
                 for (int i = 0; i < richTextBox1.Lines.Length - C_OFFSET_TELEMETRIES; i++)
                 {
-                    if ( (errorRegister & (0x01 << i) ) != 0)
+                    if ((errorRegister & (0x01 << i)) != 0)
                     {
-                        changeLine(richTextBox1, i+ C_OFFSET_TELEMETRIES, "ON");
+                        changeLine(richTextBox1, i + C_OFFSET_TELEMETRIES, "ON");
                         richTextBox1.Select(richTextBox1.GetFirstCharIndexFromLine(i + C_OFFSET_TELEMETRIES), richTextBox1.Lines[C_OFFSET_TELEMETRIES + i].Length);
                         richTextBox1.SelectionColor = Color.Green;
                     }
                     else
                     {
-                        changeLine(richTextBox1, i+ C_OFFSET_TELEMETRIES, "OFF");
+                        changeLine(richTextBox1, i + C_OFFSET_TELEMETRIES, "OFF");
                         richTextBox1.Select(richTextBox1.GetFirstCharIndexFromLine(i + C_OFFSET_TELEMETRIES), richTextBox1.Lines[C_OFFSET_TELEMETRIES + i].Length);
                         richTextBox1.SelectionColor = Color.Red;
                     }
                 }
 
-
+                changeLine(richTextBox1, 0, (setpoint.ToString() + "°"));
+                changeLine(richTextBox1, 1, (angle.ToString() + "°"));
+                changeLine(richTextBox1, 2, (error.ToString() + "°"));
+                changeLine(richTextBox1, 3, (realCommand.ToString() + "%"));
+                Console.WriteLine("lalalala");
             }
         }
-        
+
         void changeLine(RichTextBox RTB, int line, string text)
         {
             int s1 = RTB.GetFirstCharIndexFromLine(line);

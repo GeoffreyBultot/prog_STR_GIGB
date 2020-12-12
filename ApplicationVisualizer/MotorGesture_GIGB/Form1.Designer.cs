@@ -146,7 +146,7 @@
             this.richTextBox1.ScrollBars = System.Windows.Forms.RichTextBoxScrollBars.None;
             this.richTextBox1.Size = new System.Drawing.Size(142, 190);
             this.richTextBox1.TabIndex = 1;
-            this.richTextBox1.Text = "0°\n0°\n0%\nOFF\nOFF\nOFF\nOFF";
+            this.richTextBox1.Text = "0°\n0°\n0°\n0%\nOFF\nOFF\nOFF\nOFF";
             // 
             // textBox1
             // 
@@ -160,8 +160,8 @@
             this.textBox1.ReadOnly = true;
             this.textBox1.Size = new System.Drawing.Size(176, 190);
             this.textBox1.TabIndex = 0;
-            this.textBox1.Text = "SET POINT :\r\nMEASURE :\r\nCOMMAND : \r\nREGULATION :\r\nCOMMUNICATION :\r\nANALOG SUPPLY " +
-    ":\r\nNUMERIC SUPPLY :";
+            this.textBox1.Text = "SET POINT :\r\nMEASURE :\r\nERROR :\r\nCOMMAND : \r\nREGULATION :\r\nCOMMUNICATION :\r\nANALO" +
+    "G SUPPLY :\r\nNUMERIC SUPPLY :";
             this.textBox1.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
             this.textBox1.TextChanged += new System.EventHandler(this.textBox1_TextChanged);
             // 
