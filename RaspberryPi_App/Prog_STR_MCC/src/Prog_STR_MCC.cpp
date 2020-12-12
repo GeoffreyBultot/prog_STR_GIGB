@@ -72,10 +72,19 @@ int main(int argc,char *argv[] )
 #endif
 	PID = getpid();
 
+
+	/* Set processor affinity */
+	cpu_set_t mask;
+	CPU_SET(2, &mask);  /* use 2 CPU core */
+	unsigned int len = sizeof(mask);
+	int status = sched_setaffinity(0, len, &mask);
+	if (status < 0) perror("sched_setaffinity");
+
 	/*HIGH PRIORITY AND SCHED FIFO*/
 	sched_getparam(PID,&schedparam);
-	schedparam.sched_priority = 1;
+	schedparam.sched_priority = 0;
 	sched_setscheduler(PID,SCHED_FIFO,&schedparam);
+
 
 	std::cout << "PROG STR MCC PID = "<< PID << std::endl;
 	wiringPiSetupGpio(); //Init wiringPi
@@ -114,7 +123,7 @@ int main(int argc,char *argv[] )
 	}
 	// SIGTERM est jamais intercepté ! donc pour terminer le pgrm proprement en attendant...
 	//GB : Par contre SIGINT est intercepté lors d'une exécution en console ;)
-	//sleep(5);
+	//sleep(2);
 	//terminerProgramme();
 
 	while(1)//loop forever

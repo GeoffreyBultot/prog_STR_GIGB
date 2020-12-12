@@ -40,12 +40,12 @@
 */
 
 
-#define Kp 0.01
-#define Ti 1000000
-#define Td 0
-
-#define Ki	1/Ti
-#define Kd	1/Td
+#define Kp 0.0042
+//#define Ti 1000000
+#define Ki 0.000005*2//.0004*1.5
+#define Td 0.000012
+//#define Ki	1/Ti
+//#define Kd	1/Td
 
 
 /*status bytes (in the same order of telemetries list on the C# application*/
@@ -129,6 +129,14 @@ int initPID_Thread(int pin_MLI)
 	pthread_mutex_init(&mutex_MCCAngle, &mutex_MCCAngle_attr);
 	pthread_mutex_init(&mutex_PIDCommand, &mutex_PIDCommand_attr);
 
+
+	int policy = 0;
+	int max_prio_for_policy = 0;
+
+	pthread_attr_init(&threadPID_attr);
+	pthread_attr_getschedpolicy(&threadPID_attr, &policy);
+	max_prio_for_policy = sched_get_priority_max(policy);
+	pthread_setschedprio(threadPID_t, max_prio_for_policy);
 
 	err = pthread_create(&threadPID_t, &threadPID_attr, thread_PID, NULL);
 
@@ -294,11 +302,6 @@ void Calcul()
 		float localpid  = p + i*Ki + d*Td;
 		E_before = epsilon;
 
-		/*i+= Ki*epsilon;
-		float localpid  = Kp*epsilon+i - Ki*(epsilon-E_before);
-		E_before = epsilon;
-		*/
-
 		setPIDCommand(localpid);
 
 		//std::cout<<"[DEBUG] consigne = " << consigne << "\t i_measure = " << measure << "\t commande = " << localpid <<std::endl;
@@ -307,13 +310,13 @@ void Calcul()
 		if(localpid < 0)
 		{
 			if(pid<-1){localpid=-1.0;}
-			setSensRotation(E_SENS_ANTI_HORAIRE);
+			setSensRotation(E_SENS_HORAIRE);
 			pwmWrite(ipin_MLI, -(localpid*MAX_PWM));
 		}
 		else
 		{
 			if(localpid>1){localpid=1.0;}
-			setSensRotation(E_SENS_HORAIRE);
+			setSensRotation(E_SENS_ANTI_HORAIRE);
 			pwmWrite(ipin_MLI, localpid*MAX_PWM);
 		}
 		SetMCCStatusFlag(C_STATUS_COMMUNICATION_ON,true);
@@ -354,9 +357,8 @@ int stopPID_Regulation()
 	pthread_mutex_destroy(&mutex_MCCConsigne);
 	pthread_mutex_destroy(&mutex_MCCAngle);
 	pthread_mutex_destroy(&mutex_MCCStatus);
-	pthread_cancel(threadPID_t);
+	int err = pthread_cancel(threadPID_t);
 	pthread_join(threadPID_t, NULL);
-	//TODO : ajouter la valeur de retour du cancel.
-	return 0;
+	return err;
 }
 
