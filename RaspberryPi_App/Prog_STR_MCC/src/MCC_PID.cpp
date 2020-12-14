@@ -26,29 +26,29 @@
 #define CLOCK_PWM 4096	//CLOCK PWM (between 0 TO 4094) //TODO savoir la fréquence exacte
 
 //NICHOLS ZIEGLER //TODO
-#define Kcr		0.004
-#define Tcr		0.000048790*2
+#define Kcr		0.14
+#define Tcr		48.790
 
 #define dt	4.77			//Période ech en mS //5 = 210Hz
 #define invdt 1/dt
 
-
 /*
 #define Kp  Kcr*0.6			//Gain proportionnel
-#define Ti  Tcr*0.5 		//Gain intégrale
+#define Ki  1/(Tcr*0.5) 		//Gain intégrale
 #define Td  Tcr*0.125		//Gain dérivée
 */
 
+
 //SANS LA ROUE
-#define Kp 0.0025
+#define Kp 0.019*1.0
 //#define Ti 1000000
-#define Ki 0.00006
-#define Td 0//.0001
+#define Ki 0.00034*2//025
+#define Td 0.34*1.5
+
 
 //AVEC LA ROUE
 /*
 #define Kp 0.0042
-//#define Ti 1000000
 #define Ki 0.000005*2//.0004*1.5
 #define Td 0.000012
 //#define Ki	1/Ti
@@ -284,6 +284,7 @@ void setPIDCommand(float command)
 
 }
 
+float errPrec[5] = {0};
 
 void Calcul()
 {
@@ -318,14 +319,22 @@ void Calcul()
 		SetMCCStatusFlag(C_STATUS_COMMUNICATION_ON,true);
 		float consigne = (float)getConsigne();
 		epsilon = consigne - (float)angle_measure;	//Calcul de l'erreur
+		i = 0;
+		for(int idx = 0; idx< 4; idx++)
+		{
+			i += errPrec[idx];
+			errPrec[idx+1] = errPrec[idx];
+		}
+		errPrec[0]= epsilon*dt;
+		i+= errPrec[0];
+
 		p = Kp*epsilon;
-		i = (i + epsilon);
 		d = epsilon-E_before;
-		float localpid  = p + i*Ki + d*Td;
+		float localpid  = p + i*Ki + d*Td*invdt;
 		E_before = epsilon;
 		setPIDCommand(localpid);
 		//std::cout<<"[DEBUG] consigne = " << consigne << "\t i_measure = " << measure << "\t commande = " << localpid <<std::endl;
-		//std::cout<<"[DEBUG] p = " << p << "\t i = " << i << "\t d = " << d <<std::endl;
+		std::cout<<"[DEBUG] p = " << p << "\t i = " << i << "\t d = " << d <<"\t commande = " << localpid <<std::endl;
 	}
 }
 
@@ -346,13 +355,12 @@ void* thread_PID(void* x)
 	SetMCCStatusFlag(C_STATUS_REGULATION_ON, true);
 	while(1)
 	{
-		//std::cout<<"calcul en cours"<<std::endl;
-
 		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL); //Cannot cancel thread in communication
+
 		Calcul();
+
 		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-		//std::cout<<"sleep en cours"<<std::endl;
-		usleep(dt*1000);
+		usleep((dt-1.0)*1000);
 		pthread_testcancel();
 	}
 	return 0;
