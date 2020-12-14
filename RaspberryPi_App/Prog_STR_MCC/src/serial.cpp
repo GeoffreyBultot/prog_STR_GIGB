@@ -14,7 +14,6 @@ int iRxPin;
 
 int half_nanoPeriod = 0;
 unsigned char receptionArray[C_N_BYTES_TOT];
-int getSpeedFromCOM();
 void serialNanoSleep(int nanoSec);
 
 void initSerial(int baudrate, unsigned char rxPin, unsigned char txPin)
@@ -60,13 +59,14 @@ int readAngle(int* angle)
 
 		//TODO DIMINUER CE TEMPS
 		gettimeofday(&timeout_first,NULL);
-		while(digitalRead(iRxPin) != LOW){
+		while( digitalRead(iRxPin) != LOW ){
 			gettimeofday(&timeout_second,NULL);
 			diff = (timeout_second.tv_sec - timeout_first.tv_sec) * 1000000 + timeout_second.tv_usec - timeout_first.tv_usec;
 			if( diff >= 10000) //10ms
 			{
 				//std::cout<<"[DEBUG] NUCLEO DETECTED BUT NOT RESPONDING"<<std::endl;
 				ErrorReg = 3;
+				break;
 			}
 		}
 

@@ -26,8 +26,8 @@
 #define CLOCK_PWM 4096	//CLOCK PWM (between 0 TO 4094) //TODO savoir la fréquence exacte
 
 //NICHOLS ZIEGLER //TODO
-#define Kcr		0.04
-#define Tcr		487.90
+#define Kcr		0.004
+#define Tcr		0.000048790*2
 
 #define dt	4.77			//Période ech en mS //5 = 210Hz
 #define invdt 1/dt
@@ -39,14 +39,21 @@
 #define Td  Tcr*0.125		//Gain dérivée
 */
 
+//SANS LA ROUE
+#define Kp 0.0025
+//#define Ti 1000000
+#define Ki 0.00006
+#define Td 0//.0001
 
+//AVEC LA ROUE
+/*
 #define Kp 0.0042
 //#define Ti 1000000
 #define Ki 0.000005*2//.0004*1.5
 #define Td 0.000012
 //#define Ki	1/Ti
 //#define Kd	1/Td
-
+*/
 
 /*status bytes (in the same order of telemetries list on the C# application*/
 
@@ -282,9 +289,9 @@ void Calcul()
 {
 	//kp = 0.02 : stabilitsation
 	float epsilon;
-	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL); //Cannot cancel thread in communication
-	int errors = readAngle(&i_measure);
-	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+	int angle_measure = 0;
+	int errors = readAngle(&angle_measure);
+	setMCCAngle(angle_measure);
 	if(errors)
 	{
 		//TODO : Handle errors. On arrête la régulation pour une erreur de transmit ?
@@ -295,6 +302,7 @@ void Calcul()
 	}
 	else
 	{
+		//std::cout<<"[DEBUG] regulation"<<std::endl;
 #ifdef LOG_MEASURE
 		gettimeofday(&stop_kcr, NULL);
 		int diff = (stop_kcr.tv_sec - start_kcr.tv_sec) * 1000000 + stop_kcr.tv_usec - start_kcr.tv_usec;
@@ -307,10 +315,9 @@ void Calcul()
 #endif
 
 		SetMCCStatusFlag(C_STATUS_REGULATION_ON, true);
-		float consigne = (float)getConsigne();
-		float measure = (float)getMCCAngle();
 		SetMCCStatusFlag(C_STATUS_COMMUNICATION_ON,true);
-		epsilon = consigne - (float)measure;	//Calcul de l'erreur
+		float consigne = (float)getConsigne();
+		epsilon = consigne - (float)angle_measure;	//Calcul de l'erreur
 		p = Kp*epsilon;
 		i = (i + epsilon);
 		d = epsilon-E_before;
@@ -339,9 +346,12 @@ void* thread_PID(void* x)
 	SetMCCStatusFlag(C_STATUS_REGULATION_ON, true);
 	while(1)
 	{
-		std::cout<<"calcul en cours"<<std::endl;
+		//std::cout<<"calcul en cours"<<std::endl;
+
+		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL); //Cannot cancel thread in communication
 		Calcul();
-		std::cout<<"sleep en cours"<<std::endl;
+		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+		//std::cout<<"sleep en cours"<<std::endl;
 		usleep(dt*1000);
 		pthread_testcancel();
 	}

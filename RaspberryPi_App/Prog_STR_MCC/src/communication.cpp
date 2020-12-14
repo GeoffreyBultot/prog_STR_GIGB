@@ -58,7 +58,7 @@ void* thread_Communication(void*)
     {
     	socket_desc = socket(AF_INET , SOCK_STREAM , 0);
     	std::cout<<"could not create socket"<<std::endl;
-    	//usleep(1);
+    	usleep(1);
     }
 
     std::cout<<"[INFO] socket Created"<<std::endl;
@@ -71,9 +71,7 @@ void* thread_Communication(void*)
     //Bind
 	while( bind(socket_desc,(struct sockaddr *)&server , sizeof(server)) < 0)
 	{
-
     	std::cout<<"could not bind"<<std::endl;
-		//usleep(1);
 	}
 
 	std::cout<<"[INFO] bind successfull"<<std::endl;
@@ -88,7 +86,6 @@ void* thread_Communication(void*)
 	while(client_sock < 0)
 	{
 		client_sock = accept(socket_desc, (struct sockaddr *)&client, (socklen_t*)&c);
-		//usleep(1);
 	}
 
 	std::cout<<"[INFO] Client connected"<<std::endl;

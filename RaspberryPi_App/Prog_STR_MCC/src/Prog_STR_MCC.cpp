@@ -76,7 +76,7 @@ int main(int argc,char *argv[] )
 
 	/* Set processor affinity */
 	cpu_set_t mask;
-	CPU_SET(2, &mask);  /* use 2 CPU core */
+	CPU_SET(3, &mask);  /* use 2 CPU core */
 	unsigned int len = sizeof(mask);
 	int status = sched_setaffinity(0, len, &mask);
 	if (status < 0) perror("sched_setaffinity");
@@ -119,13 +119,13 @@ int main(int argc,char *argv[] )
 		else
 		{
 			setSensRotation(E_SENS_DEFAULT);
-			setConsigne(180);
+			setConsigne(30);
 		}
 	}
 	// SIGTERM est jamais intercepté ! donc pour terminer le pgrm proprement en attendant...
 	//GB : Par contre SIGINT est intercepté lors d'une exécution en console ;)
-	sleep(5);
-	terminerProgramme();
+	//sleep(5);
+	//terminerProgramme();
 
 	while(1)//loop forever
 	{
