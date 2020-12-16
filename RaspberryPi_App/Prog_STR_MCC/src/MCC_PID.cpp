@@ -38,29 +38,22 @@
 #define Td  Tcr*0.125		//Gain dérivée
 */
 
+#define C_NB_ECH_INTEGRAL 5
 
-//SANS LA ROUE
-#define Kp 0.019*1.0
+
+#define Kp 0.0019*1.0
 //#define Ti 1000000
-#define Ki 0.00034*2//025
-#define Td 0.34*1.5
+#define Ki 0.000034*5.0//025
+#define Td 0.034*1.5
 
 
-//AVEC LA ROUE
-/*
-#define Kp 0.0042
-#define Ki 0.000005*2//.0004*1.5
-#define Td 0.000012
-//#define Ki	1/Ti
-//#define Kd	1/Td
-*/
 
 /*status bytes (in the same order of telemetries list on the C# application*/
-
 #define C_STATUS_REGULATION_ON		1<<0
 #define C_STATUS_COMMUNICATION_ON	1<<1
 #define C_STATUS_ANALOG_SUPPLY_ON	1<<2
 #define C_STATUS_LOGIC_SUPPLY_ON	1<<3
+#define C_STATUS_IS_MOTOR_BLOCKED	1<<4
 #define C_STATUS_ALL_ON				0xFF //Clear or set all flags
 
 /* GLOBAL VARIABLES */
@@ -164,22 +157,22 @@ int initPID_Thread(int pin_MLI)
 }
 
 void LogicRelayON(){
-	digitalWrite(C_PIN_RELAY_LOGIC, LOW);
+	digitalWrite(C_PIN_RELAY_LOGIC, HIGH);
 	SetMCCStatusFlag(C_STATUS_LOGIC_SUPPLY_ON, true);
 }
 
 void LogicRelayOFF(){
-	digitalWrite(C_PIN_RELAY_LOGIC, HIGH);
+	digitalWrite(C_PIN_RELAY_LOGIC, LOW);
 	SetMCCStatusFlag(C_STATUS_LOGIC_SUPPLY_ON, false);
 }
 
 void PowerRelayON(){
-	digitalWrite(C_PIN_RELAY_POWER, LOW);
+	digitalWrite(C_PIN_RELAY_POWER, HIGH);
 	SetMCCStatusFlag(C_STATUS_ANALOG_SUPPLY_ON, true);
 }
 
 void PowerRelayOFF(){
-	digitalWrite(C_PIN_RELAY_POWER, HIGH);
+	digitalWrite(C_PIN_RELAY_POWER, LOW);
 	SetMCCStatusFlag(C_STATUS_ANALOG_SUPPLY_ON, false);
 }
 
@@ -284,7 +277,7 @@ void setPIDCommand(float command)
 
 }
 
-float errPrec[5] = {0};
+float errPrec[C_NB_ECH_INTEGRAL] = {0};
 
 void Calcul()
 {
@@ -320,7 +313,7 @@ void Calcul()
 		float consigne = (float)getConsigne();
 		epsilon = consigne - (float)angle_measure;	//Calcul de l'erreur
 		i = 0;
-		for(int idx = 0; idx< 4; idx++)
+		for(int idx = 0; idx< C_NB_ECH_INTEGRAL-1; idx++)
 		{
 			i += errPrec[idx];
 			errPrec[idx+1] = errPrec[idx];
@@ -333,8 +326,25 @@ void Calcul()
 		float localpid  = p + i*Ki + d*Td*invdt;
 		E_before = epsilon;
 		setPIDCommand(localpid);
+
+		bool toutesLesMemesErreurs = true;
+		for(int k = 0; k< C_NB_ECH_INTEGRAL-1; k++)
+		{
+			if(errPrec[k]!=errPrec[k+1])
+			{
+				toutesLesMemesErreurs = false;
+			}
+		}
+		if( ((localpid > 0.04)||(localpid < -0.04)) && (toutesLesMemesErreurs==true))
+		{
+			SetMCCStatusFlag(C_STATUS_IS_MOTOR_BLOCKED, true);
+		}
+		else
+		{
+			SetMCCStatusFlag(C_STATUS_IS_MOTOR_BLOCKED, false);
+		}
 		//std::cout<<"[DEBUG] consigne = " << consigne << "\t i_measure = " << measure << "\t commande = " << localpid <<std::endl;
-		std::cout<<"[DEBUG] p = " << p << "\t i = " << i << "\t d = " << d <<"\t commande = " << localpid <<std::endl;
+		std::cout<<"[DEBUG] p = " << p << "\t i = " << i*Ki << "\t d = " << d*Td*invdt <<"\t commande = " << localpid <<std::endl;
 	}
 }
 
@@ -347,10 +357,10 @@ void* thread_PID(void* x)
 
     LogicRelayON();
 	std::cout << "[INFO] LogicRelay is ON"<< std::endl;
-	//sleep(2);
+	sleep(2);
 	PowerRelayON();
 	std::cout << "[INFO] PowerRelay is ON"<< std::endl;
-	//sleep(2);
+	sleep(2);
 
 	SetMCCStatusFlag(C_STATUS_REGULATION_ON, true);
 	while(1)

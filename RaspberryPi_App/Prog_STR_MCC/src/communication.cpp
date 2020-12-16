@@ -54,11 +54,12 @@ void* thread_Communication(void*)
     int client_sock;
     int read_size;
 
+	socket_desc = socket(AF_INET , SOCK_STREAM , 0);
     while (socket_desc == -1)
     {
     	socket_desc = socket(AF_INET , SOCK_STREAM , 0);
-    	std::cout<<"could not create socket"<<std::endl;
-    	usleep(1);
+    	std::cout<<"Socket could not create socket"<<std::endl;
+    	usleep(1);//Preemption point (if cancel)
     }
 
     std::cout<<"[INFO] socket Created"<<std::endl;
@@ -72,6 +73,7 @@ void* thread_Communication(void*)
 	while( bind(socket_desc,(struct sockaddr *)&server , sizeof(server)) < 0)
 	{
     	std::cout<<"could not bind"<<std::endl;
+    	usleep(1);//Preemption point (if cancel)
 	}
 
 	std::cout<<"[INFO] bind successfull"<<std::endl;
