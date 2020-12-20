@@ -27,7 +27,6 @@ void initSerial(int baudrate, unsigned char rxPin, unsigned char txPin)
 	pinMode(iTxPin,OUTPUT);
 
 	digitalWrite(iTxPin, HIGH);
-	//usleep(1000000);
 }
 
 /*
@@ -45,10 +44,9 @@ int readAngle(int* angle)
 
 
 	int ErrorReg = 0;
-	//TODO ADD FALLING EDGE DETECTION
+
 	if(digitalRead(iRxPin) != HIGH)
 	{
-		//std::cout<<"[DEBUG] PAS DE NUCLEO DETECTE" <<std::endl;
 		ErrorReg = 2; //ERROR : pas de nucleo detecte
 	}
 	else
@@ -78,10 +76,10 @@ int readAngle(int* angle)
 				for(j=0;j<C_N_BITS;j++){
 					//HIGH
 					digitalWrite(iTxPin, HIGH);
-					serialNanoSleep(half_nanoPeriod);
+					SerialDelayNOP();
 					//LOW
 					digitalWrite(iTxPin, LOW);
-					serialNanoSleep(half_nanoPeriod);
+					SerialDelayNOP();
 					currentbit = digitalRead(iRxPin);
 					//FALLING => Reading
 					currentByte |= currentbit<<j;
@@ -126,6 +124,5 @@ void serialNanoSleep(int nanoSec)
 
 	clock_nanosleep( CLOCK_MONOTONIC, TIMER_ABSTIME, &deadline, NULL);
 }
-
 
 

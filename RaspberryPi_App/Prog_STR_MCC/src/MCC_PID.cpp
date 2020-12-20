@@ -19,7 +19,7 @@
 #include "MODULES_DEFINE.hpp"
 #include <sys/time.h>
 #include "string.h"
-
+#include "sys/times.h"
 /* DEFINES */
 #define MAX_PWM 1024	//RANGE max
 #define MIN_PWM 0		//PWM MIN
@@ -40,11 +40,9 @@
 
 #define C_NB_ECH_INTEGRAL 5
 
-
 #define Kp 0.0019*1.0
-//#define Ti 1000000
 #define Ki 0.000034*5.0//025
-#define Td 0.034*1.5
+#define Td 0.034*1.8
 
 
 
@@ -284,7 +282,14 @@ void Calcul()
 	//kp = 0.02 : stabilitsation
 	float epsilon;
 	int angle_measure = 0;
+	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL); //Cannot cancel thread in communication
+	//digitalWrite(C_PIN_LED_GREEN_2, HIGH);
+
 	int errors = readAngle(&angle_measure);
+	//digitalWrite(C_PIN_LED_GREEN_2, LOW);
+
+	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+
 	setMCCAngle(angle_measure);
 	if(errors)
 	{
@@ -320,7 +325,11 @@ void Calcul()
 		}
 		errPrec[0]= epsilon*dt;
 		i+= errPrec[0];
-
+		/*if(i>200.0)
+			i = 200.0;
+		else if(i<-200.0)
+			i=-200.0;
+		*/
 		p = Kp*epsilon;
 		d = epsilon-E_before;
 		float localpid  = p + i*Ki + d*Td*invdt;
@@ -361,15 +370,19 @@ void* thread_PID(void* x)
 	PowerRelayON();
 	std::cout << "[INFO] PowerRelay is ON"<< std::endl;
 	sleep(2);
-
+	pinMode(C_PIN_LED_GREEN_2, OUTPUT);
 	SetMCCStatusFlag(C_STATUS_REGULATION_ON, true);
+
+	struct timeval t_second, t_first;
+
 	while(1)
 	{
-		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL); //Cannot cancel thread in communication
-
+		//digitalWrite(C_PIN_LED_GREEN_2, HIGH);
+		gettimeofday(&t_first,NULL);
 		Calcul();
 
-		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+		gettimeofday(&t_second,NULL);
+		//digitalWrite(C_PIN_LED_GREEN_2, LOW);
 		usleep((dt-1.0)*1000);
 		pthread_testcancel();
 	}

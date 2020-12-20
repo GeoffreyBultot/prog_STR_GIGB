@@ -15,4 +15,12 @@ void initSerial(int baudrate, unsigned char rxPin, unsigned char txPin);
 /*blocking function*/
 int readAngle(int*);
 
+//7812 NOP for 9600 bauds
+#define SerialDelayNOP() nop_1000()nop_1000()nop_1000()nop_1000()nop_1000()nop_1000()nop_1000()nop_500()nop_200()nop_100()nop_10()asm("nop");asm("nop");
+#define nop_1000() nop_500()nop_500()
+#define nop_500() nop_200()nop_200()nop_100()
+#define nop_200() nop_100()nop_100()
+#define nop_100() nop_10()nop_10()nop_10()nop_10()nop_10()nop_10()nop_10()nop_10()nop_10()nop_10()
+#define nop_10() asm("nop");asm("nop");asm("nop");asm("nop");asm("nop");asm("nop");asm("nop");asm("nop");asm("nop");asm("nop");
+
 #endif //_SERIAL_H_
