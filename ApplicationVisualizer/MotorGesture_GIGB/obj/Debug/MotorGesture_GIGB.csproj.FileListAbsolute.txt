@@ -16,3 +16,13 @@ D:\geoff\Documents\MotorGesture_GIGB\MotorGesture_GIGB\obj\Debug\MotorGesture_GI
 D:\geoff\Documents\MotorGesture_GIGB\MotorGesture_GIGB\obj\Debug\MotorGesture_GIGB.csproj.GenerateResource.cache
 D:\geoff\Documents\MotorGesture_GIGB\MotorGesture_GIGB\obj\Debug\MotorGesture_GIGB.exe
 D:\geoff\Documents\MotorGesture_GIGB\MotorGesture_GIGB\obj\Debug\MotorGesture_GIGB.pdb
+C:\Users\delta\Documents\GitHub\prog_STR_GIGB\ApplicationVisualizer\MotorGesture_GIGB\bin\Debug\MotorGesture_GIGB.exe.config
+C:\Users\delta\Documents\GitHub\prog_STR_GIGB\ApplicationVisualizer\MotorGesture_GIGB\bin\Debug\MotorGesture_GIGB.exe
+C:\Users\delta\Documents\GitHub\prog_STR_GIGB\ApplicationVisualizer\MotorGesture_GIGB\obj\Debug\MotorGesture_GIGB.csprojAssemblyReference.cache
+C:\Users\delta\Documents\GitHub\prog_STR_GIGB\ApplicationVisualizer\MotorGesture_GIGB\obj\Debug\MotorGesture_GIGB.Form1.resources
+C:\Users\delta\Documents\GitHub\prog_STR_GIGB\ApplicationVisualizer\MotorGesture_GIGB\obj\Debug\MotorGesture_GIGB.Properties.Resources.resources
+C:\Users\delta\Documents\GitHub\prog_STR_GIGB\ApplicationVisualizer\MotorGesture_GIGB\obj\Debug\MotorGesture_GIGB.csproj.GenerateResource.cache
+C:\Users\delta\Documents\GitHub\prog_STR_GIGB\ApplicationVisualizer\MotorGesture_GIGB\obj\Debug\MotorGesture_GIGB.csproj.CoreCompileInputs.cache
+C:\Users\delta\Documents\GitHub\prog_STR_GIGB\ApplicationVisualizer\MotorGesture_GIGB\obj\Debug\MotorGesture_GIGB.exe
+C:\Users\delta\Documents\GitHub\prog_STR_GIGB\ApplicationVisualizer\MotorGesture_GIGB\obj\Debug\MotorGesture_GIGB.pdb
+C:\Users\delta\Documents\GitHub\prog_STR_GIGB\ApplicationVisualizer\MotorGesture_GIGB\bin\Debug\MotorGesture_GIGB.pdb

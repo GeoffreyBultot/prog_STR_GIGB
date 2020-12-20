@@ -131,9 +131,9 @@
             this.panel1.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D;
             this.panel1.Controls.Add(this.richTextBox1);
             this.panel1.Controls.Add(this.textBox1);
-            this.panel1.Location = new System.Drawing.Point(27, 316);
+            this.panel1.Location = new System.Drawing.Point(27, 294);
             this.panel1.Name = "panel1";
-            this.panel1.Size = new System.Drawing.Size(329, 200);
+            this.panel1.Size = new System.Drawing.Size(329, 209);
             this.panel1.TabIndex = 10;
             // 
             // richTextBox1
@@ -146,9 +146,9 @@
             this.richTextBox1.Name = "richTextBox1";
             this.richTextBox1.ReadOnly = true;
             this.richTextBox1.ScrollBars = System.Windows.Forms.RichTextBoxScrollBars.None;
-            this.richTextBox1.Size = new System.Drawing.Size(142, 190);
+            this.richTextBox1.Size = new System.Drawing.Size(142, 204);
             this.richTextBox1.TabIndex = 1;
-            this.richTextBox1.Text = "0°\n0°\n0°\n0%\nOFF\nOFF\nOFF\nOFF";
+            this.richTextBox1.Text = "0°\n0°\n0°\n0%\nOFF\nOFF\nOFF\nOFF\nRUNNING";
             // 
             // textBox1
             // 
@@ -160,10 +160,10 @@
             this.textBox1.Multiline = true;
             this.textBox1.Name = "textBox1";
             this.textBox1.ReadOnly = true;
-            this.textBox1.Size = new System.Drawing.Size(176, 190);
+            this.textBox1.Size = new System.Drawing.Size(176, 204);
             this.textBox1.TabIndex = 0;
-            this.textBox1.Text = "SET POINT :\r\nMEASURE :\r\nERROR :\r\nCOMMAND : \r\nREGULATION :\r\nCOMMUNICATION :\r\nANALO" +
-    "G SUPPLY :\r\nNUMERIC SUPPLY :";
+            this.textBox1.Text = "SET POINT :\r\nMEASURE :\r\nERROR :\r\nCOMMAND :\r\nREGULATION :\r\nCOMMUNICATION :\r\nANALOG" +
+    " SUPPLY :\r\nNUMERIC SUPPLY :\r\nMOTOR STATE :";
             this.textBox1.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
             this.textBox1.TextChanged += new System.EventHandler(this.textBox1_TextChanged);
             // 
@@ -173,9 +173,9 @@
             this.panel2.Controls.Add(this.label6);
             this.panel2.Controls.Add(this.txtBox_Angle);
             this.panel2.Controls.Add(this.btn_SenAngle);
-            this.panel2.Location = new System.Drawing.Point(27, 173);
+            this.panel2.Location = new System.Drawing.Point(27, 187);
             this.panel2.Name = "panel2";
-            this.panel2.Size = new System.Drawing.Size(329, 98);
+            this.panel2.Size = new System.Drawing.Size(329, 53);
             this.panel2.TabIndex = 11;
             // 
             // label6
@@ -195,7 +195,7 @@
             this.label3.AutoSize = true;
             this.label3.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, ((System.Drawing.FontStyle)((System.Drawing.FontStyle.Bold | System.Drawing.FontStyle.Underline))), System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.label3.ForeColor = System.Drawing.Color.DodgerBlue;
-            this.label3.Location = new System.Drawing.Point(22, 288);
+            this.label3.Location = new System.Drawing.Point(23, 266);
             this.label3.Name = "label3";
             this.label3.Size = new System.Drawing.Size(135, 25);
             this.label3.TabIndex = 12;
@@ -206,7 +206,7 @@
             this.label4.AutoSize = true;
             this.label4.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, ((System.Drawing.FontStyle)((System.Drawing.FontStyle.Bold | System.Drawing.FontStyle.Underline))), System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.label4.ForeColor = System.Drawing.Color.DodgerBlue;
-            this.label4.Location = new System.Drawing.Point(22, 145);
+            this.label4.Location = new System.Drawing.Point(22, 159);
             this.label4.Name = "label4";
             this.label4.Size = new System.Drawing.Size(100, 25);
             this.label4.TabIndex = 13;

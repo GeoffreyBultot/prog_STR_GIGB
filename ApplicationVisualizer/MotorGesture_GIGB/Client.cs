@@ -128,7 +128,7 @@ namespace MotorGesture_GIGB
             {
                 clientSocket.EndConnect(ar);
             }
-            catch (SocketException e)
+            catch (Exception e)
             {
                 onConnectionRefused(e.Message);
             }

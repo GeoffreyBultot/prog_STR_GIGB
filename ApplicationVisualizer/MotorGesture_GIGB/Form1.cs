@@ -16,6 +16,8 @@ namespace MotorGesture_GIGB
     public partial class Form1 : Form
     {
         private const int C_OFFSET_TELEMETRIES = 4;
+        private const int C_OFFSET_MOTOR_STATE = C_OFFSET_TELEMETRIES + 4;
+
         public Client remoteServer;
         IPHostEntry localIP = Dns.Resolve(Dns.GetHostName());
         //TODO change image
@@ -207,7 +209,7 @@ namespace MotorGesture_GIGB
 
                 pictBox_Wheel.Image = RotateImage(bitmap, angle, pictBox_Wheel.Width, pictBox_Wheel.Height); ;
 
-                for (int i = 0; i < richTextBox1.Lines.Length - C_OFFSET_TELEMETRIES; i++)
+                for (int i = 0; i < (richTextBox1.Lines.Length - 1) - C_OFFSET_TELEMETRIES; i++)
                 {
                     if ((errorRegister & (0x01 << i)) != 0)
                     {
@@ -222,6 +224,20 @@ namespace MotorGesture_GIGB
                         richTextBox1.SelectionColor = Color.Red;
                     }
                 }
+
+                if ((errorRegister & (0x01 << C_OFFSET_MOTOR_STATE-C_OFFSET_TELEMETRIES)) == 0)
+                {
+                    changeLine(richTextBox1, C_OFFSET_MOTOR_STATE, "RUNNING");
+                    richTextBox1.Select(richTextBox1.GetFirstCharIndexFromLine(C_OFFSET_MOTOR_STATE), richTextBox1.Lines[C_OFFSET_MOTOR_STATE].Length);
+                    richTextBox1.SelectionColor = Color.Green;
+                }
+                else
+                {
+                    changeLine(richTextBox1, C_OFFSET_MOTOR_STATE, "BLOCKED");
+                    richTextBox1.Select(richTextBox1.GetFirstCharIndexFromLine(C_OFFSET_MOTOR_STATE), richTextBox1.Lines[C_OFFSET_MOTOR_STATE].Length);
+                    richTextBox1.SelectionColor = Color.Red;
+                }
+                
 
                 changeLine(richTextBox1, 0, (setpoint.ToString() + "°"));
                 changeLine(richTextBox1, 1, (angle.ToString() + "°"));
