@@ -1,7 +1,23 @@
+/**============================================================================
+ * @file serial.cpp
+ * @brief
+ * @details
+ *
+ * - Company			: HE2B - ISIB
+ * - Project			: progra STR : MCC asservissement
+ * - Authors			: Bultot Geoffrey, Ishimaru Geoffrey
+ *   Copyright			: All right reserved
+ *   Description		: This file contain:
+ *   							- Serial communication between RPI & Nucleo to send angle of MCC.
+ *   							-
+ *=============================================================================*/
 
+
+/***************************************************************************
+* Includes Directives
+***************************************************************************/
 
 #include "serial.hpp"
-
 #include <iostream>
 #include "unistd.h"
 #include <wiringPi.h>
@@ -9,12 +25,31 @@
 #include "sys/time.h"
 #include "MODULES_DEFINE.hpp"
 
+/***************************************************************************
+* Constant declarations
+***************************************************************************/
+
+/***************************************************************************
+* Type definitions
+***************************************************************************/
+
+/***************************************************************************
+* Variables declarations
+***************************************************************************/
 int iTxPin;
 int iRxPin;
 
 int half_nanoPeriod = 0;
 unsigned char receptionArray[C_N_BYTES_TOT];
+/***************************************************************************
+* Functions declarations
+***************************************************************************/
 void serialNanoSleep(int nanoSec);
+
+/***************************************************************************
+* Functions
+***************************************************************************/
+
 
 void initSerial(int baudrate, unsigned char rxPin, unsigned char txPin)
 {

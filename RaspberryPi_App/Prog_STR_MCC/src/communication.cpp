@@ -1,3 +1,22 @@
+/**============================================================================
+ * @file communication.cpp
+ * @brief
+ * @details
+ *
+ * - Company			: HE2B - ISIB
+ * - Project			: progra STR : MCC asservissement
+ * - Authors			: Bultot Geoffrey, Ishimaru Geoffrey
+ *   Copyright			: All right reserved
+ *   Description		: This file contain
+ *   							- all functions to communicate with the motor_Gesture terminal unsing TCP protocol through a POSIX thread
+ *   							-
+ *=============================================================================*/
+
+
+/***************************************************************************
+* Includes Directives
+***************************************************************************/
+
 #include "communication.hpp"
 #include<stdio.h>
 #include<string.h>    //for strlen
@@ -11,8 +30,17 @@
 #include <MCC_PID.hpp>
 #include <sys/time.h>
 
-void* thread_Communication(void*);
+/***************************************************************************
+* Constant declarations
+***************************************************************************/
 
+/***************************************************************************
+* Type definitions
+***************************************************************************/
+
+/***************************************************************************
+* Variables declarations
+***************************************************************************/
 
 pthread_attr_t threadCOM_attr;
 pthread_t threadCOM_t;
@@ -20,6 +48,18 @@ pthread_t threadCOM_t;
 int socket_desc = socket(AF_INET , SOCK_STREAM , 0);
 int c;
 struct sockaddr_in server , client;
+
+/***************************************************************************
+* Functions declarations
+***************************************************************************/
+
+void* thread_Communication(void*);
+
+
+
+/***************************************************************************
+** Functions                                                              **
+***************************************************************************/
 
 int initCOM_Thread(void)
 {
@@ -33,15 +73,6 @@ int initCOM_Thread(void)
 	pthread_setschedprio(threadCOM_t, max_prio_for_policy-1);
 
 	int err = pthread_create( &threadCOM_t , &threadCOM_attr,  thread_Communication , NULL);
-
-	if(err)
-	{
-
-		//return 1; //TODO ERROR
-	}
-
-	//Listen
-
     return err;
 }
 

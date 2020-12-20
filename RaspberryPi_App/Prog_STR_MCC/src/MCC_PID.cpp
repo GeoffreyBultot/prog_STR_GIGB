@@ -1,42 +1,47 @@
-/*
- * MCC_PID.c
+/**============================================================================
+ * @file MCC_PID.cpp
+ * @brief
+ * @details
  *
- *  Created on: 21 nov. 2020
- *      Author: bultot
- */
+ * - Company			: HE2B - ISIB
+ * - Project			: progra STR : MCC asservissement
+ * - Authors			: Bultot Geoffrey, Ishimaru Geoffrey
+ *   Copyright			: All right reserved
+ *   Description		: This file contain
+ *   							- PID regulation for the MCC asservissement LAB
+ *   							- Functions to set and get values of shared variables
+ *   							- Shared variables protections using mutexs
+ *=============================================================================*/
 
+
+/***************************************************************************
+* Includes Directives
+***************************************************************************/
 
 #include "MCC_PID.hpp"
-
 #include <iostream>
 #include "unistd.h"
 #include <wiringPi.h>
 #include <semaphore.h>
 #include "pthread.h"
-
 #include "softPwm.h"
 #include "serial.hpp"
 #include "MODULES_DEFINE.hpp"
 #include <sys/time.h>
 #include "string.h"
 #include "sys/times.h"
-/* DEFINES */
+
+
+/***************************************************************************
+* Constants
+***************************************************************************/
+
 #define MAX_PWM 1024	//RANGE max
 #define MIN_PWM 0		//PWM MIN
 #define CLOCK_PWM 4096	//CLOCK PWM (between 0 TO 4094) //TODO savoir la fréquence exacte
 
-//NICHOLS ZIEGLER //TODO
-#define Kcr		0.14
-#define Tcr		48.790
-
 #define dt	4.77			//Période ech en mS //5 = 210Hz
 #define invdt 1/dt
-
-/*
-#define Kp  Kcr*0.6			//Gain proportionnel
-#define Ki  1/(Tcr*0.5) 		//Gain intégrale
-#define Td  Tcr*0.125		//Gain dérivée
-*/
 
 #define C_NB_ECH_INTEGRAL 5
 
@@ -54,29 +59,24 @@
 #define C_STATUS_IS_MOTOR_BLOCKED	1<<4
 #define C_STATUS_ALL_ON				0xFF //Clear or set all flags
 
-/* GLOBAL VARIABLES */
-int C = 0;
-float u = 0;			//Valeur renvoyée au robot
-float E = 0;			//Erreur actuelle
-float E_before = 0;	//Erreur précedente
-float E2_before = 0;	//Erreur avant la précédente
-float M = 0;			//Mesure
-
+/***************************************************************************
+* GLOBAL Variables                                                              **
+***************************************************************************/
 float p = 0;
 float i = 0;
 float d = 0;
 float pid = 0;
+float C = 0;
+float E_before = 0;	//Erreur précedente
 
-T_ROTATION_SENS CurrentSensRotation=E_SENS_DEFAULT;
-
-/* PROTOTYPES*/
-void* thread_PID(void*);
-
-pthread_attr_t threadPID_attr;
-pthread_t threadPID_t;
 int ipin_MLI;
 int i_measure;
 int MCC_Status;
+
+T_ROTATION_SENS CurrentSensRotation = E_SENS_DEFAULT;
+
+pthread_attr_t threadPID_attr;
+pthread_t threadPID_t;
 
 pthread_mutex_t mutex_MCCAngle;
 pthread_mutex_t mutex_MCCStatus;
@@ -88,7 +88,18 @@ pthread_mutexattr_t mutex_MCCStatus_attr;
 pthread_mutexattr_t mutex_MCCConsigne_attr;
 pthread_mutexattr_t mutex_PIDCommand_attr;
 
-//TODO Remove after found Kcr
+
+/***************************************************************************
+** Functions Prototypes
+***************************************************************************/
+
+void* thread_PID(void*);
+
+
+/***************************************************************************
+** Functions                                                              **
+***************************************************************************/
+
 #ifdef LOG_MEASURE
 static float GainProp = 0.0;
 char filename[200] = "";

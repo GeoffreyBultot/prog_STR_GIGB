@@ -1,12 +1,20 @@
+/**============================================================================
+ * @file Prog_STR_MCC.cpp
+ * @brief
+ * @details
+ *
+ * - Company			: HE2B - ISIB
+ * - Project			: progra STR : MCC asservissement
+ * - Authors			: Bultot Geoffrey, Ishimaru Geoffrey
+ *   Copyright			: All right reserved
+ *   Description		: Main of asservissement MCC lab
+ *=============================================================================*/
 
-//============================================================================
-// Name        : Prog_STR_MCC.cpp
-// Author      : Bultot Geoffrey, Ishimaru Geoffrey
-// Version     :
-// Copyright   : Your copyright notice
-// Description : Main of asservissement MCC lab
-//============================================================================
 
+
+/***************************************************************************
+* Includes Directives
+***************************************************************************/
 #include "MODULES_DEFINE.hpp"
 #include <MCC_PID.hpp>
 #include <serial.hpp>
@@ -16,6 +24,28 @@
 #include <wiringPi.h>
 #include "time.h"
 #include <signal.h>
+
+/***************************************************************************
+* Constant declarations
+***************************************************************************/
+
+/***************************************************************************
+* Type definitions
+***************************************************************************/
+
+/***************************************************************************
+* Variables declarations
+***************************************************************************/
+
+/***************************************************************************
+* Functions declarations
+***************************************************************************/
+
+/***************************************************************************
+* Functions
+***************************************************************************/
+
+
 
 void terminerProgramme()
 {
@@ -129,11 +159,7 @@ int main(int argc,char *argv[] )
 
 	while(1)//loop forever
 	{
-		/*
-		int i_measure = readSpeed();
-		std::cout << "[DEBUG] i_mesure : " << i_measure << std::endl;
-		usleep(2000000);
-		*/
+		sleep(60);
 	}
 	return 0;
 }
