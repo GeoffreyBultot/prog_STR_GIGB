@@ -12,7 +12,6 @@
 
 #ifndef _MCC_PID_H_
 #define _MCC_PID_H_
-
 /***************************************************************************
 * Includes Directives
 ***************************************************************************/
@@ -42,29 +41,32 @@ typedef enum{
 * Functions declarations
 ***************************************************************************/
 
+/*Regulation thread init & stop*/
 #ifdef LOG_MEASURE
 int initPID_Thread(int pin_MLI, float Prop);
 #else
 int initPID_Thread(int pin_MLI);
 #endif
+int stopPID_Regulation(void);
 
+/*control supply*/
 void PowerRelayON();
 void PowerRelayOFF();
 void LogicRelayON();
 void LogicRelayOFF();
-int stopPID_Regulation(void);
-void setSensRotation(T_ROTATION_SENS sensRotation);
-void setConsigne(int consigne);
 
+/*Control rotation sense*/
+void setSensRotation(T_ROTATION_SENS sensRotation);
+
+/*Set and get values*/
+void setConsigne(int consigne);
 int getConsigne();
 void setConsigne(int consigne);
 int getMCCStatus();
 void SetMCCStatusFlag(int flag, bool value);
 int getMCCAngle();
 void setMCCAngle(int angle);
-
 float getPIDCommand();
 void setPIDCommand(float command);
-
 
 #endif //_MCC_PID_H_

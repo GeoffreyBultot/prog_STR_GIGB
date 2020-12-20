@@ -73,8 +73,6 @@ void generalSignalHandler(int signal)
 
 void initSignalHandler()
 {
-	// - - - - - Mise en place du handler de signal - - - - -
-
 	// Création et initialisation de la structure POSIX
 	struct sigaction signalAction;
 	sigemptyset(&signalAction.sa_mask);

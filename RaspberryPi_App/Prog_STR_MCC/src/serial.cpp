@@ -51,6 +51,13 @@ void serialNanoSleep(int nanoSec);
 ***************************************************************************/
 
 
+/**
+ * @brief This function is used to initialize the serial communication between the RPi and the µC
+ * @param[in] baudrate (todo: retirer si ça marche avec les nop)
+ * @param[in] rxPin (GPIOx)
+ * @param[in] txPin (GPIOx)
+ * @return void
+ */
 void initSerial(int baudrate, unsigned char rxPin, unsigned char txPin)
 {
 	half_nanoPeriod = (int) (1000000000.0/( (float)baudrate * (float)C_N_BITS * 2.0));
@@ -64,10 +71,11 @@ void initSerial(int baudrate, unsigned char rxPin, unsigned char txPin)
 	digitalWrite(iTxPin, HIGH);
 }
 
-/*
- * @brief function
- * return register of occured errors
- * params */
+/**
+ * @brief This function is used to stop the pid regulation, stop the motor
+ * @param[in] pointer to get the new angle
+ * @return errors if issue on communication => 0 if ok
+ */
 int readAngle(int* angle)
 {
 	unsigned int i;

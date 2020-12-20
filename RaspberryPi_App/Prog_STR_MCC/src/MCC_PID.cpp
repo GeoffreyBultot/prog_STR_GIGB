@@ -68,6 +68,7 @@ float d = 0;
 float pid = 0;
 float C = 0;
 float E_before = 0;	//Erreur précedente
+float errPrec[C_NB_ECH_INTEGRAL] = {0};
 
 int ipin_MLI;
 int i_measure;
@@ -151,40 +152,58 @@ int initPID_Thread(int pin_MLI)
 
 	if( err ==0)
 	{
-		pinMode(C_PIN_RELAY_LOGIC, OUTPUT);
-		pinMode(C_PIN_RELAY_POWER, OUTPUT);
-		pinMode(C_PIN_SENS_ROT1, OUTPUT);
-		pinMode(C_PIN_SENS_ROT2, OUTPUT);
-		pinMode(ipin_MLI, PWM_OUTPUT);
+		pinMode(C_PIN_RELAY_LOGIC, OUTPUT);	//PIN relay logic part 	: PIN OUTPUT
+		pinMode(C_PIN_RELAY_POWER, OUTPUT);	//Pin relay power part 	: PIN OUTPUT
+		pinMode(C_PIN_SENS_ROT1, OUTPUT);	//Rotation sense 1 		: PIN OUTPUT
+		pinMode(C_PIN_SENS_ROT2, OUTPUT);	//Rotation sense 2		: PIN OUTPUT
+		pinMode(ipin_MLI, PWM_OUTPUT);		//Pin MLI 				: PWM OUTPUT
 
-		pwmSetMode(PWM_MODE_BAL);
-		pwmSetRange(1024);
-		pwmSetClock(4094);
-		pwmWrite(ipin_MLI, 0);
+		pwmSetMode(PWM_MODE_BAL);	//PWM Balanced mode
+		pwmSetRange(1024);			//Range PWM : 0 to 1023
+		pwmSetClock(4094);			//TODO: check the divider
+		pwmWrite(ipin_MLI, 0);		//Set pwm to 0
 	}
 	return err;
 }
 
+/**
+ * @brief This function is used to power ON the logic part of the circuit
+ * @return void
+ */
 void LogicRelayON(){
 	digitalWrite(C_PIN_RELAY_LOGIC, HIGH);
 	SetMCCStatusFlag(C_STATUS_LOGIC_SUPPLY_ON, true);
 }
-
+/**
+ * @brief This function is used to power OFF the logic part of the circuit
+ * @return void
+ */
 void LogicRelayOFF(){
 	digitalWrite(C_PIN_RELAY_LOGIC, LOW);
 	SetMCCStatusFlag(C_STATUS_LOGIC_SUPPLY_ON, false);
 }
-
+/**
+ * @brief This function is used to power ON the power part of the circuit
+ * @return void
+ */
 void PowerRelayON(){
 	digitalWrite(C_PIN_RELAY_POWER, HIGH);
 	SetMCCStatusFlag(C_STATUS_ANALOG_SUPPLY_ON, true);
 }
-
+/**
+ * @brief This function is used to power OFF the power part of the circuit
+ * @return void
+ */
 void PowerRelayOFF(){
 	digitalWrite(C_PIN_RELAY_POWER, LOW);
 	SetMCCStatusFlag(C_STATUS_ANALOG_SUPPLY_ON, false);
 }
 
+/**
+ * @brief This function is used to set the rotation sense of the motor
+ * @param[in] sensRotation
+ * @return void
+ */
 void setSensRotation(T_ROTATION_SENS sensRotation)
 {
 	//Activation des pins
@@ -206,6 +225,10 @@ void setSensRotation(T_ROTATION_SENS sensRotation)
 	CurrentSensRotation =  sensRotation;
 }
 
+/**
+ * @brief This function is used to get the current set point (with mutex protection)
+ * @return void
+ */
 int getConsigne()
 {
 	int consigne;
@@ -214,6 +237,11 @@ int getConsigne()
 	pthread_mutex_unlock(&mutex_MCCConsigne);
 	return consigne;
 }
+/**
+ * @brief This function is used to set the current set point (with mutex protection)
+ * @param[in] consigne
+ * @return void
+ */
 void setConsigne(int consigne)
 {
 	pthread_mutex_lock(&mutex_MCCConsigne);
@@ -221,6 +249,10 @@ void setConsigne(int consigne)
 	pthread_mutex_unlock(&mutex_MCCConsigne);
 }
 
+/**
+ * @brief This function is used to get the MCCStatus register (with mutex protection)
+ * @return void
+ */
 int getMCCStatus()
 {
 	int status;
@@ -230,6 +262,12 @@ int getMCCStatus()
 	return status;
 }
 
+/**
+ * @brief This function is used to set the MCCStatus register (with mutex protection)
+ * @param[in] flag
+ * @param[in] value
+ * @return void
+ */
 void SetMCCStatusFlag(int flag, bool value)
 {
 	pthread_mutex_lock(&mutex_MCCStatus);
@@ -240,6 +278,10 @@ void SetMCCStatusFlag(int flag, bool value)
 	pthread_mutex_unlock(&mutex_MCCStatus);
 }
 
+/**
+ * @brief This function is used to get the current angle (with mutex protection)
+ * @return void
+ */
 int getMCCAngle()
 {
 	int measure;
@@ -249,6 +291,11 @@ int getMCCAngle()
 	return measure;
 }
 
+/**
+ * @brief This function is used to set the current angle (with mutex protection)
+ * @param[in] angle
+ * @return void
+ */
 void setMCCAngle(int angle)
 {
 	pthread_mutex_lock(&mutex_MCCAngle);
@@ -257,6 +304,10 @@ void setMCCAngle(int angle)
 
 }
 
+/**
+ * @brief This function is used to get the current pid command (with mutex protection)
+ * @return void
+ */
 float getPIDCommand()
 {
 	float command;
@@ -266,6 +317,11 @@ float getPIDCommand()
 	return command;
 }
 
+/**
+ * @brief This function is used to set the current pid command (with mutex protection)
+ * @param[in] command
+ * @return void
+ */
 void setPIDCommand(float command)
 {
 	pthread_mutex_lock(&mutex_PIDCommand);
@@ -286,88 +342,109 @@ void setPIDCommand(float command)
 
 }
 
-float errPrec[C_NB_ECH_INTEGRAL] = {0};
-
+/**
+ * @brief This function is used to read angle in NUCLEO and calcul & set a new pid value
+ * @return void
+ */
 void Calcul()
 {
-	//kp = 0.02 : stabilitsation
+	/*Variables locales utilisées pour le calcul. L'utilisation de variables locales est important d'une par pour éviter le TOCTOU
+	 * (time of check time of use) et d'autre part pour stocker les variables globales utilisées dans plusieurs threads.
+	 * => Moins de contraintes temporelles parce qu'on utilise qu'une seule fois le mutex de chaque variable globale. */
 	float epsilon;
-	int angle_measure = 0;
-	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL); //Cannot cancel thread in communication
-	//digitalWrite(C_PIN_LED_GREEN_2, HIGH);
+	int local_angle_measure = 0;
+	float localpid;
+	float consigne;
 
-	int errors = readAngle(&angle_measure);
-	//digitalWrite(C_PIN_LED_GREEN_2, LOW);
-
+	/* La consigne étant une variable partagée entre plusieurs threads, il faut la récupérer grâce à getConsigne. Cette fonction
+	 * contenant un mutex, on la stocke dans une variable locale AVANT de lire la mesure sur la nucleo*/
+	consigne = (float)getConsigne();
+	/*thread pas cancellable pendant la lecture sur nucleo*/
+	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+	int errors = readAngle(&local_angle_measure);
 	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
-	setMCCAngle(angle_measure);
-	if(errors)
-	{
-		//TODO : Handle errors. On arrête la régulation pour une erreur de transmit ?
+
+	if(errors){
+		/*Protection en cas d'erreur sur la communication:	- Flag de communication à false
+		 * 													- Flag de régulation à 0 (on ne régule pas)
+		 * 													- Arrêt de la régulation (commande à 0)
+		 */
 		SetMCCStatusFlag(C_STATUS_COMMUNICATION_ON, false);
 		SetMCCStatusFlag(C_STATUS_REGULATION_ON, false);
 		setPIDCommand(0);
-		//std::cout<< "[DEBUG] ERROR IN COM : " << errors << std::endl;
 	}
 	else
 	{
-		//std::cout<<"[DEBUG] regulation"<<std::endl;
-#ifdef LOG_MEASURE
+		/* Si la communication s'est bien passée, on a récupéré l'angle et on régule le moteur.
+		 * 				- Flag communication à true
+		 * 				- Flag régulation à true
+		 * */
+		SetMCCStatusFlag(C_STATUS_REGULATION_ON, true);
+		SetMCCStatusFlag(C_STATUS_COMMUNICATION_ON,true);
+		epsilon = consigne - (float)local_angle_measure;	//Calcul de l'erreur
+
+
+		for(int idx = 0; idx< C_NB_ECH_INTEGRAL-1; idx++){
+			//i += errPrec[idx]; //Retirer cette ligne = gain de temps. On soustrait la dernière à i et on ajoute l'actuelle
+			errPrec[idx+1] = errPrec[idx];
+		}
+
+		errPrec[0]= epsilon*dt;
+		//Terme proportionnel
+		p = Kp*epsilon;
+		//Terme intégral
+		i -= errPrec[C_NB_ECH_INTEGRAL-1];	//Soustraction de la dernière
+		i += errPrec[0];					//Addition de l'actuelle
+		//Terme dérivée
+		d = epsilon-E_before;
+		E_before = epsilon;
+		//Localpid = valeur de pid dans cette fonction
+		localpid  = p + i*Ki + d*Td*invdt;
+		/* Mise à jour de la valeur de la PWM et de la variable globale de la commande*/
+		setPIDCommand(localpid);
+		/*Mise à jour de l'angle dans la variable globale. On met à jour après avoir calculé le PID pour ne pas ralentir
+		 * le calcul avec le mutex de setMMCAnle comme expliqué au début de la fonction.*/
+		setMCCAngle(local_angle_measure);
+
+		/*Détection de blocage de rotor. On vérifie le tableau des derniers échantillons relevés sur la MCC
+		 * Si ils sont tous les mêmes et qu'on a une commande supérieure à 4% en valeur absolue, il y a blocage rotor
+		 * Si il y a blocage rotor, on arrête la régulation.*/
+		bool toutesLesMemesErreurs = true;
+		for(int k = 0; k< C_NB_ECH_INTEGRAL-1; k++){
+			if(errPrec[k]!=errPrec[k+1]){
+				toutesLesMemesErreurs = false;
+			}
+		}
+		if( ((localpid > 0.04)||(localpid < -0.04)) && (toutesLesMemesErreurs==true)){
+			SetMCCStatusFlag(C_STATUS_IS_MOTOR_BLOCKED, true);}
+		else{
+			SetMCCStatusFlag(C_STATUS_IS_MOTOR_BLOCKED, false);
+			SetMCCStatusFlag(C_STATUS_REGULATION_ON, false);
+			setPIDCommand(0);
+		}
+
+		//std::cout<<"[DEBUG] p = " << p << "\t i = " << i*Ki << "\t d = " << d*Td*invdt <<"\t commande = " << localpid <<std::endl;
+
+#ifdef LOG_MEASURE //Log les mesure sur la MCC
 		gettimeofday(&stop_kcr, NULL);
 		int diff = (stop_kcr.tv_sec - start_kcr.tv_sec) * 1000000 + stop_kcr.tv_usec - start_kcr.tv_usec;
 		char buff[20] = {0};
-		sprintf(buff,"%d;%d\n",diff,i_measure);
+		sprintf(buff,"%d;%d\n",diff,local_angle_measure);
 		FILE* fp;
 		fp = fopen(filename, "a");
 		fprintf(fp, buff);
 		fclose(fp);
 #endif
-
-		SetMCCStatusFlag(C_STATUS_REGULATION_ON, true);
-		SetMCCStatusFlag(C_STATUS_COMMUNICATION_ON,true);
-		float consigne = (float)getConsigne();
-		epsilon = consigne - (float)angle_measure;	//Calcul de l'erreur
-		i = 0;
-		for(int idx = 0; idx< C_NB_ECH_INTEGRAL-1; idx++)
-		{
-			i += errPrec[idx];
-			errPrec[idx+1] = errPrec[idx];
-		}
-		errPrec[0]= epsilon*dt;
-		i+= errPrec[0];
-		/*if(i>200.0)
-			i = 200.0;
-		else if(i<-200.0)
-			i=-200.0;
-		*/
-		p = Kp*epsilon;
-		d = epsilon-E_before;
-		float localpid  = p + i*Ki + d*Td*invdt;
-		E_before = epsilon;
-		setPIDCommand(localpid);
-
-		bool toutesLesMemesErreurs = true;
-		for(int k = 0; k< C_NB_ECH_INTEGRAL-1; k++)
-		{
-			if(errPrec[k]!=errPrec[k+1])
-			{
-				toutesLesMemesErreurs = false;
-			}
-		}
-		if( ((localpid > 0.04)||(localpid < -0.04)) && (toutesLesMemesErreurs==true))
-		{
-			SetMCCStatusFlag(C_STATUS_IS_MOTOR_BLOCKED, true);
-		}
-		else
-		{
-			SetMCCStatusFlag(C_STATUS_IS_MOTOR_BLOCKED, false);
-		}
-		//std::cout<<"[DEBUG] consigne = " << consigne << "\t i_measure = " << measure << "\t commande = " << localpid <<std::endl;
-		std::cout<<"[DEBUG] p = " << p << "\t i = " << i*Ki << "\t d = " << d*Td*invdt <<"\t commande = " << localpid <<std::endl;
 	}
 }
 
+
+/**
+ * @brief This function is a thread to handle the motor regulation
+ * @param[in] void*
+ * @return void*
+ */
 void* thread_PID(void* x)
 {
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
@@ -375,34 +452,40 @@ void* thread_PID(void* x)
 
     //TODO ajout de sem de synchro pour attendre la fin de l'initialisation
 
+    //Allumage des relais pour alimenter la carte
+    sleep(2);
     LogicRelayON();
 	std::cout << "[INFO] LogicRelay is ON"<< std::endl;
 	sleep(2);
 	PowerRelayON();
 	std::cout << "[INFO] PowerRelay is ON"<< std::endl;
-	sleep(2);
+	/*TODO PIN DE DEBUG*/
 	pinMode(C_PIN_LED_GREEN_2, OUTPUT);
-	SetMCCStatusFlag(C_STATUS_REGULATION_ON, true);
 
 	struct timeval t_second, t_first;
-
+	int diff;
 	while(1)
 	{
 		//digitalWrite(C_PIN_LED_GREEN_2, HIGH);
 		gettimeofday(&t_first,NULL);
 		Calcul();
-
 		gettimeofday(&t_second,NULL);
+		diff = (t_second.tv_sec - t_first.tv_sec) * 1000000 + t_second.tv_usec - t_first.tv_usec;
+		std::cout<<  diff << std::endl;
 		//digitalWrite(C_PIN_LED_GREEN_2, LOW);
-		usleep((dt-1.0)*1000);
+
+		usleep((dt)*1000-diff);
 		pthread_testcancel();
 	}
 	return 0;
 }
 
+/**
+ * @brief This function is used to stop the pid regulation, stop the motor
+ * @return errors in cancel thread
+ */
 int stopPID_Regulation()
 {
-
 	pthread_mutex_destroy(&mutex_MCCConsigne);
 	pthread_mutex_destroy(&mutex_MCCAngle);
 	pthread_mutex_destroy(&mutex_MCCStatus);

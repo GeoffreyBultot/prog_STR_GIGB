@@ -61,6 +61,11 @@ void* thread_Communication(void*);
 ** Functions                                                              **
 ***************************************************************************/
 
+/**
+ * @brief This function is used to create and start the TCP communication thread
+ * @param[in] void*
+ * @return errors in thread_create
+ */
 int initCOM_Thread(void)
 {
 
@@ -76,7 +81,13 @@ int initCOM_Thread(void)
     return err;
 }
 
-int angle;
+int angle; //TODO
+
+/**
+ * @brief This function is a thread to handle the TCP communication with the MOTOR_GEsture interface
+ * @param[in] void*
+ * @return void*
+ */
 void* thread_Communication(void*)
 {
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
@@ -170,7 +181,10 @@ void* thread_Communication(void*)
 }
 
 
-
+/**
+ * @brief This function is used to stop the TCP communication thread and close socket
+ * @return errors in cancel thread
+ */
 int stopCOM_thread(void)
 {
 	setsockopt(socket_desc,SOL_SOCKET,SO_REUSEADDR,NULL,sizeof(int));
