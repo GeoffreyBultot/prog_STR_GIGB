@@ -1,11 +1,30 @@
+/**============================================================================
+ * @file MODULES_DEFINES.hpp
+ * @brief
+ * @details
+ *
+ * - Company			: HE2B - ISIB
+ * - Project			: progra STR : MCC asservissement
+ * - Authors			: Bultot Geoffrey, Ishimaru Geoffrey
+ *   Copyright			: All right reserved
+ *   Description		: Contain USER define. This file is used to change quickly the system configuration
+ *=============================================================================*/
+
 #ifndef _MODULES_DEFINE_H_
 #define _MODULES_DEFINE_H_
 
 
+/***************************************************************************
+* Includes Directives
+***************************************************************************/
+
+/***************************************************************************
+* Constant declarations
+***************************************************************************/
+
 /*SERIAL BAUDRATE DEFINITION*/
-#define C_BAUDRATE 				256000 //115200
-/*CONSTANT TO CALCUL SPEED*/
-#define C_CONSTANT_SPEED_CALCULATION 3 //speed = count/(thisconstant)
+#define C_BAUDRATE 				4800 //115200
+
 /*PIN DEFINTION*/
 
 #define C_PIN_RPI_RX			17
@@ -21,5 +40,19 @@
 #define C_PIN_LED_ORANGE_2		13
 #define C_PIN_LED_GREEN_1		19
 #define C_PIN_LED_GREEN_2		26
+
+
+/***************************************************************************
+* Type definitions
+***************************************************************************/
+
+/***************************************************************************
+* Variables declarations
+***************************************************************************/
+
+/***************************************************************************
+* Functions declarations
+***************************************************************************/
+
 
 #endif //_MODULES_DEFINE_H_

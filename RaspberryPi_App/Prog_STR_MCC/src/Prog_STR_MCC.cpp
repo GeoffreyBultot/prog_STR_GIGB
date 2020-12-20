@@ -1,12 +1,20 @@
+/**============================================================================
+ * @file Prog_STR_MCC.cpp
+ * @brief
+ * @details
+ *
+ * - Company			: HE2B - ISIB
+ * - Project			: progra STR : MCC asservissement
+ * - Authors			: Bultot Geoffrey, Ishimaru Geoffrey
+ *   Copyright			: All right reserved
+ *   Description		: Main of asservissement MCC lab
+ *=============================================================================*/
 
-//============================================================================
-// Name        : Prog_STR_MCC.cpp
-// Author      : Bultot Geoffrey, Ishimaru Geoffrey
-// Version     :
-// Copyright   : Your copyright notice
-// Description : Main of asservissement MCC lab
-//============================================================================
 
+
+/***************************************************************************
+* Includes Directives
+***************************************************************************/
 #include "MODULES_DEFINE.hpp"
 #include <MCC_PID.hpp>
 #include <serial.hpp>
@@ -17,9 +25,32 @@
 #include "time.h"
 #include <signal.h>
 
+/***************************************************************************
+* Constant declarations
+***************************************************************************/
+
+/***************************************************************************
+* Type definitions
+***************************************************************************/
+
+/***************************************************************************
+* Variables declarations
+***************************************************************************/
+
+/***************************************************************************
+* Functions declarations
+***************************************************************************/
+
+/***************************************************************************
+* Functions
+***************************************************************************/
+
+
+
 void terminerProgramme()
 {
 	stopPID_Regulation();
+	usleep(2000000);//to see in interface status changes
 	stopCOM_thread();
 	std::cout<< "termine"<<std::endl;
 	exit(0);
@@ -42,8 +73,6 @@ void generalSignalHandler(int signal)
 
 void initSignalHandler()
 {
-	// - - - - - Mise en place du handler de signal - - - - -
-
 	// Création et initialisation de la structure POSIX
 	struct sigaction signalAction;
 	sigemptyset(&signalAction.sa_mask);
@@ -52,22 +81,39 @@ void initSignalHandler()
 	signalAction.sa_handler = &generalSignalHandler;
 	// Interception de SIGTEM uniquement
 
-	if (sigaction(SIGTERM, &signalAction, NULL) == -1){ // si erreur
-		std::cerr << "Impossible d'intercepter SIGTERM !" << std::endl;
+	if (sigaction(SIGINT, &signalAction, NULL) == -1){ // si erreur
+		std::cerr << "Impossible d'intercepter SIGINT!" << std::endl;
 	}
 }
 
-int main()
+int main(int argc,char *argv[] )
 {
 	//int i = 0;
 	int PID;
 	sched_param schedparam;
+
+#ifdef LOG_MEASURE
+	float kpt;
+	if(argc > 1)
+		kpt = atof(argv[1]);  // alternative strtod
+	else
+		kpt = 0.02;
+#endif
 	PID = getpid();
+
+
+	/* Set processor affinity */
+	cpu_set_t mask;
+	CPU_SET(3, &mask);  /* use 2 CPU core */
+	unsigned int len = sizeof(mask);
+	int status = sched_setaffinity(0, len, &mask);
+	if (status < 0) perror("sched_setaffinity");
 
 	/*HIGH PRIORITY AND SCHED FIFO*/
 	sched_getparam(PID,&schedparam);
-	schedparam.sched_priority = 1;
+	schedparam.sched_priority = 0;
 	sched_setscheduler(PID,SCHED_FIFO,&schedparam);
+
 
 	std::cout << "PROG STR MCC PID = "<< PID << std::endl;
 	wiringPiSetupGpio(); //Init wiringPi
@@ -78,28 +124,40 @@ int main()
 	std::cout << "[INFO] SERIAL initialized"<< std::endl;
 
 
+#ifdef LOG_MEASURE
+	int err = initPID_Thread(C_PIN_MLI,kpt);
+#else
 	int err = initPID_Thread(C_PIN_MLI);
-	if(err == 0)
-		std::cout << "[INFO] THREAD REGULATION initialized"<< std::endl;
-	else
+#endif
+	if(err)
+	{
 		std::cout << "[INFO] THREAD REGULATION not started ERROR VALUE: "<< err << std::endl;
-
-
-	err = initCOM_Thread();
-	setSensRotation(E_SENS_HORAIRE);
-	setConsigne(30);
-
+		terminerProgramme();
+	}
+	else
+	{
+		std::cout << "[INFO] THREAD REGULATION initialized"<< std::endl;
+		//TODO: erreur thread com
+		err = initCOM_Thread();
+		if(err)
+		{
+			std::cout<<"[ERROR] COM THREAD NOT STARTED error : " << err <<std::endl;
+			terminerProgramme();
+		}
+		else
+		{
+			setSensRotation(E_SENS_DEFAULT);
+			setConsigne(30);
+		}
+	}
 	// SIGTERM est jamais intercepté ! donc pour terminer le pgrm proprement en attendant...
-	sleep(50);
-	terminerProgramme();
+	//GB : Par contre SIGINT est intercepté lors d'une exécution en console ;)
+	//sleep(5);
+	//terminerProgramme();
 
 	while(1)//loop forever
 	{
-		/*
-		int i_measure = readSpeed();
-		std::cout << "[DEBUG] i_mesure : " << i_measure << std::endl;
-		usleep(2000000);
-		*/
+		sleep(60);
 	}
 	return 0;
 }

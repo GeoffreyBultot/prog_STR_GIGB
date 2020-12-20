@@ -1,3 +1,22 @@
+/**============================================================================
+ * @file communication.cpp
+ * @brief
+ * @details
+ *
+ * - Company			: HE2B - ISIB
+ * - Project			: progra STR : MCC asservissement
+ * - Authors			: Bultot Geoffrey, Ishimaru Geoffrey
+ *   Copyright			: All right reserved
+ *   Description		: This file contain
+ *   							- all functions to communicate with the motor_Gesture terminal unsing TCP protocol through a POSIX thread
+ *   							-
+ *=============================================================================*/
+
+
+/***************************************************************************
+* Includes Directives
+***************************************************************************/
+
 #include "communication.hpp"
 #include<stdio.h>
 #include<string.h>    //for strlen
@@ -11,8 +30,17 @@
 #include <MCC_PID.hpp>
 #include <sys/time.h>
 
-void* thread_Communication(void*);
+/***************************************************************************
+* Constant declarations
+***************************************************************************/
 
+/***************************************************************************
+* Type definitions
+***************************************************************************/
+
+/***************************************************************************
+* Variables declarations
+***************************************************************************/
 
 pthread_attr_t threadCOM_attr;
 pthread_t threadCOM_t;
@@ -21,43 +49,45 @@ int socket_desc = socket(AF_INET , SOCK_STREAM , 0);
 int c;
 struct sockaddr_in server , client;
 
+/***************************************************************************
+* Functions declarations
+***************************************************************************/
+
+void* thread_Communication(void*);
+
+
+
+/***************************************************************************
+** Functions                                                              **
+***************************************************************************/
+
+/**
+ * @brief This function is used to create and start the TCP communication thread
+ * @param[in] void*
+ * @return errors in thread_create
+ */
 int initCOM_Thread(void)
 {
 
+	int policy = 0;
+	int max_prio_for_policy = 0;
 
-    //Create socket
-    socket_desc = socket(AF_INET , SOCK_STREAM , 0);
-    if (socket_desc == -1)
-    {
-        printf("Could not create socket");
-    }
-    puts("Socket created");
+	pthread_attr_init(&threadCOM_attr);
+	pthread_attr_getschedpolicy(&threadCOM_attr, &policy);
+	max_prio_for_policy = sched_get_priority_max(policy);
+	pthread_setschedprio(threadCOM_t, max_prio_for_policy-1);
 
-    //Prepare sockaddr_in structure
-    server.sin_family = AF_INET;
-    server.sin_addr.s_addr = INADDR_ANY;
-    server.sin_port = htons( 2600 );
-
-    //Bind
-	if( bind(socket_desc,(struct sockaddr *)&server , sizeof(server)) < 0)
-	{
-		//print the error message
-		perror("bind failed. Error");
-	}
-	puts("bind done");
-
-	if( pthread_create( &threadCOM_t , &threadCOM_attr,  thread_Communication , NULL) < 0)
-	{
-		//return 1; //TODO ERROR
-	}
-
-	//Listen
-	listen(socket_desc , 3);
-
-    return 0;
+	int err = pthread_create( &threadCOM_t , &threadCOM_attr,  thread_Communication , NULL);
+    return err;
 }
 
-int angle;
+int angle; //TODO
+
+/**
+ * @brief This function is a thread to handle the TCP communication with the MOTOR_GEsture interface
+ * @param[in] void*
+ * @return void*
+ */
 void* thread_Communication(void*)
 {
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
@@ -65,6 +95,32 @@ void* thread_Communication(void*)
 
     int client_sock;
     int read_size;
+
+	socket_desc = socket(AF_INET , SOCK_STREAM , 0);
+    while (socket_desc == -1)
+    {
+    	socket_desc = socket(AF_INET , SOCK_STREAM , 0);
+    	std::cout<<"Socket could not create socket"<<std::endl;
+    	usleep(1);//Preemption point (if cancel)
+    }
+
+    std::cout<<"[INFO] socket Created"<<std::endl;
+
+    //Prepare sockaddr_in structure
+    server.sin_family = AF_INET;
+    server.sin_addr.s_addr = INADDR_ANY;
+    server.sin_port = htons( 2600 );
+
+    //Bind
+	while( bind(socket_desc,(struct sockaddr *)&server , sizeof(server)) < 0)
+	{
+    	std::cout<<"could not bind"<<std::endl;
+    	usleep(1);//Preemption point (if cancel)
+	}
+
+	std::cout<<"[INFO] bind successfull"<<std::endl;
+
+	listen(socket_desc , 3);
 
     c = sizeof(struct sockaddr_in);
     std::cout<< "[INFO] Waiting for incoming connections..."<<std::endl;
@@ -78,24 +134,19 @@ void* thread_Communication(void*)
 
 	std::cout<<"[INFO] Client connected"<<std::endl;
 
-	char buffer[6];
+	char buffer[20];
 	int difftime = 0;
 	struct timeval stop, start;
 	gettimeofday(&start, NULL);
-	i_measure = 0;
 	while(1)
     {
-		//TODO : machine d'état pour les reconnexions ?
 		int32_t AngleConsigne;
 		char *data = (char*)&AngleConsigne;
 		int size = sizeof(AngleConsigne);
 
 		if( (read_size = recv(client_sock , data , size , MSG_DONTWAIT)) > 0 )
 		{
-			//TODO ajouter des vérifications sur la lecture de C
-			//TODO : mutex ?
-			C = *((int*)data);//atoi(data);
-			std::cout<<"data:"<<data<<std::endl;
+			setConsigne(*(int*)data);
 		}
 		else if(read_size == 0)
 		{
@@ -108,37 +159,39 @@ void* thread_Communication(void*)
 			std::cout<<"[INFO] Client reconnected"<<std::endl;
 
 		}
+		/*
 		else if(read_size == -1)
 		{
-			//perror("recv failed");
-		}
+			perror("recv failed");
+		}*/
 		gettimeofday(&stop, NULL);
-		//printf("us :  %lu us\n", (stop.tv_sec - start.tv_sec) * 1000000 + stop.tv_usec - start.tv_usec);
 		difftime = (stop.tv_sec - start.tv_sec) * 1000000 + stop.tv_usec - start.tv_usec;
-		//std::cout<<difftime<<std::endl;
 		if(difftime > 100000)
 		{
-			i_measure++;
-			i_measure %= 360;
-			sprintf(buffer, "%d;%d", i_measure, MCC_Status); //TODO  \0 ?
+			int measure = getMCCAngle();
+			int status = getMCCStatus();
+			int consigne = getConsigne();
+			int command = (10000.0*getPIDCommand());
+			sprintf(buffer, "%d;%d;%d;%d", measure, status,consigne, command); //TODO  \0 ?
 			write(client_sock, buffer , strlen(buffer));
 			gettimeofday(&start, NULL);
 		}
-
-
-
 		pthread_testcancel();
     }
 }
 
 
-
+/**
+ * @brief This function is used to stop the TCP communication thread and close socket
+ * @return errors in cancel thread
+ */
 int stopCOM_thread(void)
 {
-	pthread_cancel(threadCOM_t);
+	setsockopt(socket_desc,SOL_SOCKET,SO_REUSEADDR,NULL,sizeof(int));
+	close(socket_desc);
+	int err = pthread_cancel(threadCOM_t);
 	pthread_join(threadCOM_t, NULL);
-	//TODO : ajouter la valeur de retour du cancel.
-	return 0;
+	return err;
 }
 
 

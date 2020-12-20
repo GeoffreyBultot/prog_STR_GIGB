@@ -1,21 +1,63 @@
+/**============================================================================
+ * @file serial.cpp
+ * @brief
+ * @details
+ *
+ * - Company			: HE2B - ISIB
+ * - Project			: progra STR : MCC asservissement
+ * - Authors			: Bultot Geoffrey, Ishimaru Geoffrey
+ *   Copyright			: All right reserved
+ *   Description		: This file contain:
+ *   							- Serial communication between RPI & Nucleo to send angle of MCC.
+ *   							-
+ *=============================================================================*/
 
+
+/***************************************************************************
+* Includes Directives
+***************************************************************************/
 
 #include "serial.hpp"
-
 #include <iostream>
 #include "unistd.h"
 #include <wiringPi.h>
 #include <math.h>
+#include "sys/time.h"
 #include "MODULES_DEFINE.hpp"
 
+/***************************************************************************
+* Constant declarations
+***************************************************************************/
+
+/***************************************************************************
+* Type definitions
+***************************************************************************/
+
+/***************************************************************************
+* Variables declarations
+***************************************************************************/
 int iTxPin;
 int iRxPin;
 
 int half_nanoPeriod = 0;
 unsigned char receptionArray[C_N_BYTES_TOT];
-int getSpeedFromCOM();
+/***************************************************************************
+* Functions declarations
+***************************************************************************/
 void serialNanoSleep(int nanoSec);
 
+/***************************************************************************
+* Functions
+***************************************************************************/
+
+
+/**
+ * @brief This function is used to initialize the serial communication between the RPi and the µC
+ * @param[in] baudrate (todo: retirer si ça marche avec les nop)
+ * @param[in] rxPin (GPIOx)
+ * @param[in] txPin (GPIOx)
+ * @return void
+ */
 void initSerial(int baudrate, unsigned char rxPin, unsigned char txPin)
 {
 	half_nanoPeriod = (int) (1000000000.0/( (float)baudrate * (float)C_N_BITS * 2.0));
@@ -27,25 +69,27 @@ void initSerial(int baudrate, unsigned char rxPin, unsigned char txPin)
 	pinMode(iTxPin,OUTPUT);
 
 	digitalWrite(iTxPin, HIGH);
-	//usleep(1000000);
 }
 
-/*
- * @brief function
- * return register of occured errors
- * params */
+/**
+ * @brief This function is used to stop the pid regulation, stop the motor
+ * @param[in] pointer to get the new angle
+ * @return errors if issue on communication => 0 if ok
+ */
 int readAngle(int* angle)
 {
 	unsigned int i;
 	unsigned int j;
 	int currentByte = 0;
 	bool currentbit;
+	struct timeval timeout_second, timeout_first;
+	int diff = 0;
+
 
 	int ErrorReg = 0;
-	//TODO ADD FALLING EDGE DETECTION
+
 	if(digitalRead(iRxPin) != HIGH)
 	{
-		//std::cout<<"[DEBUG] PAS DE NUCLEO DETECTE" <<std::endl;
 		ErrorReg = 2; //ERROR : pas de nucleo detecte
 	}
 	else
@@ -54,67 +98,55 @@ int readAngle(int* angle)
 		digitalWrite(iTxPin, LOW);
 		//Waiting com from Nucleo
 
-		int start_timeout = time(NULL);
-
-		while(digitalRead(iRxPin) != LOW){
-			if(difftime(time(NULL), start_timeout) >= 1){
-				std::cout<<"[DEBUG] NUCLEO DETECTED BUT NOT RESPONDING"<<std::endl;
+		//TODO DIMINUER CE TEMPS
+		gettimeofday(&timeout_first,NULL);
+		while( digitalRead(iRxPin) != LOW ){
+			gettimeofday(&timeout_second,NULL);
+			diff = (timeout_second.tv_sec - timeout_first.tv_sec) * 1000000 + timeout_second.tv_usec - timeout_first.tv_usec;
+			if( diff >= 10000) //10ms
+			{
+				//std::cout<<"[DEBUG] NUCLEO DETECTED BUT NOT RESPONDING"<<std::endl;
 				ErrorReg = 3;
+				break;
 			}
 		}
 
 		if(ErrorReg == 0)
 		{
-			std::cout << "Réception : \t"; //TODO JUST TO DEBUG
+			//std::cout << "Réception : \t"; //TODO JUST TO DEBUG
 			for(i=0;i<C_N_BYTES_TOT;i++){
 				currentByte = 0;
 				for(j=0;j<C_N_BITS;j++){
 					//HIGH
 					digitalWrite(iTxPin, HIGH);
-					serialNanoSleep(half_nanoPeriod);
+					SerialDelayNOP();
 					//LOW
 					digitalWrite(iTxPin, LOW);
-					serialNanoSleep(half_nanoPeriod);
+					SerialDelayNOP();
 					currentbit = digitalRead(iRxPin);
 					//FALLING => Reading
 					currentByte |= currentbit<<j;
 				}
 				receptionArray[i] = currentByte;
-				std::cout << currentByte << "\t"; //TODO JUST TO DEBUG
+				//std::cout << currentByte << "\t"; //TODO JUST TO DEBUG
 			}
-			int display_speed = 0;
-			for(int a = 0; a < C_N_BYTES_DATA; a++){
-				display_speed += receptionArray[C_POS_FIRST_DATA+a]*pow(256,a);
-			}
-			std::cout<< " Position du moteur = " << display_speed << std::endl; //TODO JUST TO DEBUG
 
 			digitalWrite(iTxPin, HIGH);
 
 
-			if( (receptionArray[C_POS_START_BYTE] == C_START_BYTE) && (receptionArray[C_POS_STOP_BYTE] == C_STOP_BYTE) )
-			{
 				unsigned char checksum = 0;
-				checksum = C_START_BYTE;
 				for(i = C_POS_FIRST_DATA ; i< C_POS_CHECKSUM; i++){
 					checksum += receptionArray[i];
 				}
-				checksum += C_STOP_BYTE;
 
 				if(checksum == receptionArray[C_POS_CHECKSUM])
 				{
-					//TODO: add speed calculation
-					int temp_speed = 0;
-					for(j = 0 ; j < C_N_BYTES_DATA ; j ++)
-					{
-						temp_speed += receptionArray[j+C_POS_FIRST_DATA] << 8*j; //Mise des bytes dans un int (à valider si on fait comme ça)
-					}
-					(*angle) = ((float)temp_speed) * C_CONSTANT_SPEED_CALCULATION;
-
+					signed int temp_speed = *(   (int*)(&(receptionArray[C_POS_FIRST_DATA])));
+					//std::cout<< " Position du moteur = " << temp_speed << std::endl; //TODO JUST TO DEBUG
+					(*angle) = temp_speed;
+					//ErrorReg = 0;
 				}
 				else{ErrorReg = 4;}
-			}
-			else{ErrorReg = 5;}
-			//return getSpeedFromCOM();
 		}
 	}
 	return ErrorReg;
@@ -135,6 +167,5 @@ void serialNanoSleep(int nanoSec)
 
 	clock_nanosleep( CLOCK_MONOTONIC, TIMER_ABSTIME, &deadline, NULL);
 }
-
 
 
