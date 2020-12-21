@@ -1,21 +1,20 @@
 /* USER CODE BEGIN Header */
-/**
-  ******************************************************************************
-  * @file           : main.c
-  * @brief          : Main program body
-  ******************************************************************************
-  * @attention
-  *
-  * <h2><center>&copy; Copyright (c) 2020 STMicroelectronics.
-  * All rights reserved.</center></h2>
-  *
-  * This software component is licensed by ST under BSD 3-Clause license,
-  * the "License"; You may not use this file except in compliance with the
-  * License. You may obtain a copy of the License at:
-  *                        opensource.org/licenses/BSD-3-Clause
-  *
-  ******************************************************************************
-  */
+/**============================================================================
+ * @file MCC_PID.cpp
+ * @brief
+ * @details
+ *
+ * - Company			: HE2B - ISIB
+ * - Project			: progra STR : MCC asservissement
+ * - Authors			: Bultot Geoffrey, Ishimaru Geoffrey
+ *   Copyright			: All right reserved
+ *   Description		: This file contain
+ *   							- STM32 Configuration : I/O pins, timers, interrupts & priority
+ *   							- Nbr of motor degree reading in real time
+ *   							- Communication with RPi
+ *   							- htim2 for communication timeout
+ *=============================================================================*/
+
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
@@ -59,22 +58,29 @@ TIM_HandleTypeDef htim2;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-unsigned char bToSend[C_N_BYTES_TOT];
+/* Data to send */
+signed int pulse_counter = 0;
+signed int nbr_degrees_to_send = 0;
+unsigned char checksum = 0;
+unsigned char bToSend[C_N_BYTES_TOT];	// byte array to send
+
+/* To keep track of sending bit, sending byte and sending state along the clock pulses from RPi */
 int tx_byte_sending;
 int tx_bit_sending;
 _Bool is_sending = 0;
+
+/* Base structure for RX pin config - reused to switch quickely between GPIO_MODE_IT_FAILLING and RISING */
 GPIO_InitTypeDef GPIO_InitStruct_RX =	{
 												.Pin = RX_Pin,
 												.Mode = GPIO_MODE_IT_FALLING,
 												.Pull = GPIO_NOPULL
 										};
 
+/* Encoder state on Hall_A edge detection, index 0 is state of Hall_A, index 1 is state of Hall_B at that moment */
 _Bool encoder_on_HATrig[2] = {0, 0};
+/* Encoder state on Hall_B edge detection, index 0 is state of Hall_A, index 1 is state of Hall_B at that moment */
 _Bool encoder_on_HBTrig[2]= {0, 0};
 
-signed int pulse_counter = 0;
-signed int nbr_degrees_to_send = 0;
-unsigned char checksum = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -107,12 +113,11 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-  // init bytes to send
+  /* init bytes to send */
   for(int i=0; i<C_N_BYTES_TOT; i++){
 	  bToSend[i] = 0x00;
   }
-//  bToSend[C_POS_START_BYTE] = C_START_BYTE;
-//  bToSend[C_POS_STOP_BYTE] = C_STOP_BYTE;
+
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -126,31 +131,17 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   MX_TIM2_Init();
+
   /* USER CODE BEGIN 2 */
-  // done in gpio init so config in the .ioc
-  //HAL_GPIO_WritePin(TX_GPIO_Port, TX_Pin, GPIO_PIN_SET);
-  //HAL_TIM_Base_Start_IT(&htim2);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	// Lecture des capteurs à effet hall
-	/*
-	if(delta_time_Hall_A > delta_time_Hall_B){
-		direction_of_rotation = HORAIRE;
-	}
-	*/
-
-	// Stockage dans des variables différentes de celles pour la comm
-	// pour éviter les accès concurrents
-	//--> fait en jouant sur les prio et ignorer les entrées Hall if(is_sending)
-
-	// timer
-
-    /* USER CODE END WHILE */
-
+	/* USER CODE END WHILE */
+	/* DOING NOTHING BUT WAITING FOR INTERRUPTS */
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
@@ -349,73 +340,87 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+/**
+ * @brief IRQ Callback on : Hall_A, Hall_B and RX pins
+ * @param[in] GPIO_Pin
+ * @return void
+ */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
+	/* General interrupt pin set */
+	HAL_GPIO_WritePin(DEBUG_INT_GPIO_Port, DEBUG_INT_Pin, GPIO_PIN_SET);
 	switch(GPIO_Pin){
 		case RX_Pin:
-			// Debug Interrupt Pin SET to see when we enter in the callback function
-			HAL_GPIO_WritePin(DEBUG_INT_GPIO_Port, DEBUG_INT_Pin, GPIO_PIN_SET);
+			/* Debug Interrupt Pin SET to see when we enter in the callback function */
 			HAL_GPIO_WritePin(DEBUG_ISR_COMM_GPIO_Port, DEBUG_ISR_COMM_Pin, GPIO_PIN_SET);
-
-			if(!is_sending){ // was in falling edge detection at first
+			/* First, if we're not already communicating : we are in falling edge detection */
+			if(!is_sending){
 				/* At this point RPi is waiting for us to reset our TX
 				 * So can take the time we need (<timeout) to prep the bytes to send before responding
 				 */
-				// set is_sending flag
-				is_sending = 1;
-				//Start interrupt for timeout on communication
-				HAL_TIM_Base_Start_IT(&htim2);
-			    HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 
-				// set pin on rising edge
+				/* First set is_sending flag */
+				is_sending = 1;
+
+				/* Start interrupt for timeout on communication */
+				HAL_TIM_Base_Start_IT(&htim2);
+			    HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);	// On-board LED will be set in case of timeout
+
+				/* set pin on rising edge */
 				GPIO_InitStruct_RX.Mode = GPIO_MODE_IT_RISING;
 				HAL_GPIO_Init(RX_GPIO_Port, &GPIO_InitStruct_RX);
 
-				// Debug LED set : rising edge mode notifier
+				/* On-board LED set : rising edge mode notifier */
 				//HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
 
 				// Reset bit & byte counters
 				tx_bit_sending = 0;
 				tx_byte_sending = 0;
 
-				// NB cannot move in main because it HAS to be finished before we accept to start communication
-				// Optimisation : reduce to reduce time in this ISR : minimize the nbr of packets to send
-				// prep package to send
-				checksum = 0;//(unsigned char) (C_START_BYTE + C_STOP_BYTE);
-				nbr_degrees_to_send = pulse_counter;
+				/* NB the following cannot move in main because it HAS to be finished
+				 * before we accept to start communication
+				 * Optimisation done : reduce the nbr of packets to send in order to minimize the time spent in this ISR
+				 */
+
+				/* Preparation of package to send */
+				checksum = 0;
+				nbr_degrees_to_send = pulse_counter;		// no conversion factor needed in this case
+
 				for(int i = 0; i < C_N_BYTES_DATA; i++){
 					bToSend[C_POS_FIRST_DATA+i] = ((nbr_degrees_to_send >> (i*8)) & 0xFF); //LSB First
 					checksum += (unsigned char) bToSend[C_POS_FIRST_DATA+i];
 				}
+
 				bToSend[C_POS_CHECKSUM] = checksum;
 
-				// tx pin reset to tell RPi to start its clock
+				/* TX pin reset to tell RPi to start its clock */
 				HAL_GPIO_WritePin(TX_GPIO_Port, TX_Pin, GPIO_PIN_RESET);
 			}
-			else{	// is sending data on rising edge
-				if(tx_byte_sending == C_N_BYTES_TOT)	// last byte+1 : end communication
+			else{
+				/* is sending data on rising edge */
+				if(tx_byte_sending == C_N_BYTES_TOT)	// last byte+1 : end of communication
 				{
-					// clear is_sending flag first
-					is_sending = 0;
-					//Start interrupt for timeout on communication
+					/*Start interrupt for timeout on communication */
 					HAL_TIM_Base_Stop_IT(&htim2);
 					htim2.Instance->CNT = 0;
 
-					// tx pin set for ending communication
+					// TX pin set for ending communication
 					HAL_GPIO_WritePin(TX_GPIO_Port, TX_Pin, GPIO_PIN_SET);
 
-					// set pin on falling edge again
+					// set RX pin on falling edge again
 					GPIO_InitStruct_RX.Mode = GPIO_MODE_IT_FALLING;
 					HAL_GPIO_Init(RX_GPIO_Port, &GPIO_InitStruct_RX);
 
-					// Debug LED reset : falling edge mode notifier
-
+					/* On-board LED reset : falling edge mode notifier */
 					//HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 
-					// prep for start counting from 0 at the end of the communication
-					//counter_Hall_A = 0;
+					/* Clear is_sending flag at last */
+					is_sending = 0;
 				}
-				else{
+				else{									// sending bits of each byte : communication running
+					/* Set TX to the bit value tracked */
 					HAL_GPIO_WritePin(TX_GPIO_Port, TX_Pin, (bToSend[tx_byte_sending] & (1<<tx_bit_sending)));
+
+					/* Increment stuff*/
 					tx_bit_sending++;
 					if(tx_bit_sending == 8){
 						tx_bit_sending = 0;
@@ -423,71 +428,76 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 					}
 				}
 			}
-			HAL_GPIO_WritePin(DEBUG_INT_GPIO_Port, DEBUG_INT_Pin, GPIO_PIN_RESET);
+			/* Debug ISR pin reset : we're out of comm ISR */
 			HAL_GPIO_WritePin(DEBUG_ISR_COMM_GPIO_Port, DEBUG_ISR_COMM_Pin, GPIO_PIN_RESET);
 			break;
 
 		case Hall_A_Pin:
+			/* Debug ISR pin reset : we're in Hall_A interrupt */
 			HAL_GPIO_WritePin(DEBUG_ISR_HALL_A_GPIO_Port, DEBUG_ISR_HALL_A_Pin, GPIO_PIN_SET);
-			// first we need to know the state of Hall_B
+			/* first we need to know the state of Hall_B */
 			encoder_on_HATrig[1] = HAL_GPIO_ReadPin(Hall_B_GPIO_Port, Hall_B_Pin);
 			encoder_on_HATrig[0] = HAL_GPIO_ReadPin(Hall_A_GPIO_Port, Hall_A_Pin);
 
-			//TODO move in main
-			// increment or decrement nbr of pulse measured according to the direction of rotation
-			// if it is rotating clock wise (CW), A always trigs before B, so they're always different
+			/* The following could be moved in main but it's still light atomic operations */
+			/* increment or decrement nbr of pulse measured according to the direction of rotation :
+			 * if it is rotating clock wise (CW), A always trigs before B, so they're always different */
 			if(encoder_on_HATrig[0] != encoder_on_HATrig[1]){
 				pulse_counter++;	// atomic operation
 			}
 			else{
-				pulse_counter--;
+				pulse_counter--;	// atomic operation
 			}
+			/* Debug ISR pin reset : we're out of Hall_A interrupt */
 			HAL_GPIO_WritePin(DEBUG_ISR_HALL_A_GPIO_Port, DEBUG_ISR_HALL_A_Pin, GPIO_PIN_RESET);
 			break;
-		case Hall_B_Pin:
-			HAL_GPIO_WritePin(DEBUG_ISR_HALL_B_GPIO_Port, DEBUG_ISR_HALL_B_Pin, GPIO_PIN_SET);
-			// first we need to know the state of Hall_B
-			encoder_on_HBTrig[1] = HAL_GPIO_ReadPin(Hall_B_GPIO_Port, Hall_B_Pin);
-			encoder_on_HBTrig[0] = HAL_GPIO_ReadPin(Hall_A_GPIO_Port, Hall_A_Pin);
-			//TODO move in main
-			// increment or decrement nbr of pulse measured according to the direction of rotation
 
-			// if it is rotating clock wise (CW), B always trigs after A, so they're always equal
+		case Hall_B_Pin:
+			/* Debug ISR pin reset : we're in Hall_B interrupt */
+			HAL_GPIO_WritePin(DEBUG_ISR_HALL_B_GPIO_Port, DEBUG_ISR_HALL_B_Pin, GPIO_PIN_SET);
+			/* first we need to know the state of Hall_A */
+			encoder_on_HBTrig[0] = HAL_GPIO_ReadPin(Hall_A_GPIO_Port, Hall_A_Pin);
+			encoder_on_HBTrig[1] = HAL_GPIO_ReadPin(Hall_B_GPIO_Port, Hall_B_Pin);
+
+			/* The following could be moved in main but it's still light atomic operations */
+			/* increment or decrement nbr of pulse measured according to the direction of rotation :
+			 * if it is rotating clock wise (CW), B always trigs after A, so they're always equal */
 			if(encoder_on_HBTrig[0] == encoder_on_HBTrig[1]){
 				pulse_counter++;	// atomic operation
 			}
 			else{
-				pulse_counter--;
+				pulse_counter--;	// atomic operation
 			}
+			/* Debug ISR pin reset : we're out of Hall_B interrupt */
 			HAL_GPIO_WritePin(DEBUG_ISR_HALL_B_GPIO_Port, DEBUG_ISR_HALL_B_Pin, GPIO_PIN_RESET);
 			break;
 	}
+	/* General Interrupt debug pin reset */
+	HAL_GPIO_WritePin(DEBUG_INT_GPIO_Port, DEBUG_INT_Pin, GPIO_PIN_RESET);
 }
 
 
-
+/**
+ * @brief IRQ Callback on : htim2 timeout
+ * @param[in] GPIO_Pin
+ * @return void
+ */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim)
 {
-    HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
-    // clear is_sending flag first
-    					is_sending = 0;
-    					//Start interrupt for timeout on communication
-    					HAL_TIM_Base_Stop_IT(&htim2);
-    					htim2.Instance->CNT = 0;
+    HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);	// On-board LED will be set in because of timeout
+    /* clear is_sending flag first */
+	is_sending = 0;
 
-    					// tx pin set for ending communication
-    					HAL_GPIO_WritePin(TX_GPIO_Port, TX_Pin, GPIO_PIN_SET);
+	/* Stop interrupt for timeout on communication */
+	HAL_TIM_Base_Stop_IT(&htim2);
+	htim2.Instance->CNT = 0;
 
-    					// set pin on falling edge again
-    					GPIO_InitStruct_RX.Mode = GPIO_MODE_IT_FALLING;
-    					HAL_GPIO_Init(RX_GPIO_Port, &GPIO_InitStruct_RX);
+	/* TX pin set for ending communication */
+	HAL_GPIO_WritePin(TX_GPIO_Port, TX_Pin, GPIO_PIN_SET);
 
-    					// Debug LED reset : falling edge mode notifier
-
-    					//HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
-
-    					// prep for start counting from 0 at the end of the communication
-    					//counter_Hall_A = 0;
+	/* set RX pin on falling edge again */
+	GPIO_InitStruct_RX.Mode = GPIO_MODE_IT_FALLING;
+	HAL_GPIO_Init(RX_GPIO_Port, &GPIO_InitStruct_RX);
 }
 
 

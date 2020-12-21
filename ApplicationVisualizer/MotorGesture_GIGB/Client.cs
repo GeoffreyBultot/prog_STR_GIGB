@@ -56,16 +56,20 @@ namespace MotorGesture_GIGB
         {
             if (!clientSocket.Connected)
             {
+                clientSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
                 IPEndPoint ep = new IPEndPoint(IPAddress.Parse(address), port);
                 clientSocket.BeginConnect(ep, clientConnectedCallback, null);
             }
         }
+
         public void Disconnect()
         {
-            if (clientSocket.Connected)
-            {
-                clientSocket.Close();
-            }
+            //if (clientSocket.Connected)
+            //{
+            clientSocket.Dispose();
+            clientSocket.Close();
+            onClientDisconnected("Client disconnected");
+            //}
         }
 
         public void Send(string data)
@@ -84,6 +88,7 @@ namespace MotorGesture_GIGB
                 }
             }
         }
+
         public void Send_int(int data)
         {
             if (clientSocket.Connected)
@@ -97,7 +102,7 @@ namespace MotorGesture_GIGB
                 }
                 catch (SocketException e)
                 {
-                    onClientDisconnected(e.Message);
+                    Disconnect();   // if there's a problem, we want to disconnect completely not only call user fonction onClientDisconnected
                 }
             }
         }

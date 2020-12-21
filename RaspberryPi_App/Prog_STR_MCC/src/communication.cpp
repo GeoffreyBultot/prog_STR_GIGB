@@ -103,6 +103,9 @@ void* thread_Communication(void*)
     	std::cout<<"Socket could not create socket"<<std::endl;
     	usleep(1);//Preemption point (if cancel)
     }
+    int enable = 1;
+    if (setsockopt(socket_desc, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0)
+        std::cout << "setsockopt(SO_REUSEADDR) failed" << std::endl;
 
     std::cout<<"[INFO] socket Created"<<std::endl;
 
@@ -112,9 +115,11 @@ void* thread_Communication(void*)
     server.sin_port = htons( 2600 );
 
     //Bind
-	while( bind(socket_desc,(struct sockaddr *)&server , sizeof(server)) < 0)
+    int errBind = bind(socket_desc,(struct sockaddr *)&server , sizeof(server));
+	while( errBind < 0)
 	{
-    	std::cout<<"could not bind"<<std::endl;
+		//EADDRINUSE;
+    	std::cout<<"could not bind, error : " << errno <<std::endl;
     	usleep(1);//Preemption point (if cancel)
 	}
 

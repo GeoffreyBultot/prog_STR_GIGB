@@ -44,11 +44,11 @@
 #define invdt 1/dt
 
 #define C_NB_ECH_INTEGRAL 5
+#define C_NB_ECH_MOTOR_BLOCKED 100
 
-#define Kp 0.0019*1.0
-#define Ki 0.000034*5.0//025
-#define Td 0.034*1.8
-
+#define Kp 0.0019*0.65			//sol A *0.65	//sol B *0.05		//sol C *1.0
+#define Ki 0.000034*5.45		//sol A *5.45	//sol B *6.0		//sol C *5.0//025
+#define Td 0.034*4.0			//sol A *4.0		//sol B *0.5		//sol C *1.8
 
 
 /*status bytes (in the same order of telemetries list on the C# application*/
@@ -68,7 +68,7 @@ float d = 0;
 float pid = 0;
 float C = 0;
 float E_before = 0;	//Erreur précedente
-float errPrec[C_NB_ECH_INTEGRAL] = {0};
+float errPrec[C_NB_ECH_MOTOR_BLOCKED] = {0};
 
 int ipin_MLI;
 int i_measure;
@@ -237,6 +237,7 @@ int getConsigne()
 	pthread_mutex_unlock(&mutex_MCCConsigne);
 	return consigne;
 }
+
 /**
  * @brief This function is used to set the current set point (with mutex protection)
  * @param[in] consigne
@@ -371,6 +372,7 @@ void Calcul()
 		 * 													- Arrêt de la régulation (commande à 0)
 		 */
 		SetMCCStatusFlag(C_STATUS_COMMUNICATION_ON, false);
+		std::cout << "erreur de comm" << std::endl;	//GI
 		SetMCCStatusFlag(C_STATUS_REGULATION_ON, false);
 		setPIDCommand(0);
 	}
@@ -384,10 +386,9 @@ void Calcul()
 		SetMCCStatusFlag(C_STATUS_COMMUNICATION_ON,true);
 		epsilon = consigne - (float)local_angle_measure;	//Calcul de l'erreur
 
-
-		for(int idx = 0; idx< C_NB_ECH_INTEGRAL-1; idx++){
-			//i += errPrec[idx]; //Retirer cette ligne = gain de temps. On soustrait la dernière à i et on ajoute l'actuelle
-			errPrec[idx+1] = errPrec[idx];
+		for(int idx = C_NB_ECH_MOTOR_BLOCKED-2; idx >= 0; idx--){
+					//i += errPrec[idx]; //Retirer cette ligne = gain de temps. On soustrait la dernière à i et on ajoute l'actuelle
+					errPrec[idx+1] = errPrec[idx];
 		}
 
 		errPrec[0]= epsilon*dt;
@@ -401,27 +402,32 @@ void Calcul()
 		E_before = epsilon;
 		//Localpid = valeur de pid dans cette fonction
 		localpid  = p + i*Ki + d*Td*invdt;
+
 		/* Mise à jour de la valeur de la PWM et de la variable globale de la commande*/
 		setPIDCommand(localpid);
 		/*Mise à jour de l'angle dans la variable globale. On met à jour après avoir calculé le PID pour ne pas ralentir
-		 * le calcul avec le mutex de setMMCAnle comme expliqué au début de la fonction.*/
+		* le calcul avec le mutex de setMMCAnle comme expliqué au début de la fonction.*/
 		setMCCAngle(local_angle_measure);
 
 		/*Détection de blocage de rotor. On vérifie le tableau des derniers échantillons relevés sur la MCC
 		 * Si ils sont tous les mêmes et qu'on a une commande supérieure à 4% en valeur absolue, il y a blocage rotor
 		 * Si il y a blocage rotor, on arrête la régulation.*/
 		bool toutesLesMemesErreurs = true;
-		for(int k = 0; k< C_NB_ECH_INTEGRAL-1; k++){
-			if(errPrec[k]!=errPrec[k+1]){
+		for(int k = 0; k < C_NB_ECH_MOTOR_BLOCKED-1; k++){
+			if(errPrec[k] != errPrec[k+1]){
 				toutesLesMemesErreurs = false;
 			}
 		}
-		if( ((localpid > 0.04)||(localpid < -0.04)) && (toutesLesMemesErreurs==true)){
-			SetMCCStatusFlag(C_STATUS_IS_MOTOR_BLOCKED, true);}
+		if( ((localpid > 0.05)||(localpid < -0.05)) && (toutesLesMemesErreurs==true)){
+//		if((toutesLesMemesErreurs==true)){
+			SetMCCStatusFlag(C_STATUS_IS_MOTOR_BLOCKED, true);
+			/* Arrêt d'urgence fonctionnel mais totalement blocant juste pour démo */
+			//SetMCCStatusFlag(C_STATUS_REGULATION_ON, false);
+			//while(1){setPIDCommand(0);}
+		}
 		else{
 			SetMCCStatusFlag(C_STATUS_IS_MOTOR_BLOCKED, false);
-			SetMCCStatusFlag(C_STATUS_REGULATION_ON, false);
-			setPIDCommand(0);
+			SetMCCStatusFlag(C_STATUS_REGULATION_ON, true);
 		}
 
 		//std::cout<<"[DEBUG] p = " << p << "\t i = " << i*Ki << "\t d = " << d*Td*invdt <<"\t commande = " << localpid <<std::endl;
@@ -438,7 +444,6 @@ void Calcul()
 #endif
 	}
 }
-
 
 /**
  * @brief This function is a thread to handle the motor regulation
@@ -471,7 +476,7 @@ void* thread_PID(void* x)
 		Calcul();
 		gettimeofday(&t_second,NULL);
 		diff = (t_second.tv_sec - t_first.tv_sec) * 1000000 + t_second.tv_usec - t_first.tv_usec;
-		std::cout<<  diff << std::endl;
+		std::cout<< "Calcul() took " << diff << "us" << std::endl;
 		//digitalWrite(C_PIN_LED_GREEN_2, LOW);
 
 		usleep((dt)*1000-diff);

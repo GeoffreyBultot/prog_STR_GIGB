@@ -21,9 +21,9 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   CONTENTS, ALLOC, LOAD, DATA
   8 .data         00000020  20000000  08002cf8  00020000  2**2
                   CONTENTS, ALLOC, LOAD, DATA
-  9 .bss          00000108  20000020  08002d18  00020020  2**2
+  9 .bss          00000104  20000020  08002d18  00020020  2**2
                   ALLOC
- 10 ._user_heap_stack 00000600  20000128  08002d18  00020128  2**0
+ 10 ._user_heap_stack 00000604  20000124  08002d18  00020124  2**0
                   ALLOC
  11 .ARM.attributes 00000028  00000000  00000000  00020020  2**0
                   CONTENTS, READONLY
@@ -37,13 +37,13 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   CONTENTS, READONLY, DEBUGGING
  16 .debug_macro  00015944  00000000  00000000  0002c240  2**0
                   CONTENTS, READONLY, DEBUGGING
- 17 .debug_line   000082a8  00000000  00000000  00041b84  2**0
+ 17 .debug_line   0000832d  00000000  00000000  00041b84  2**0
                   CONTENTS, READONLY, DEBUGGING
- 18 .debug_str    0007bc29  00000000  00000000  00049e2c  2**0
+ 18 .debug_str    0007bbdc  00000000  00000000  00049eb1  2**0
                   CONTENTS, READONLY, DEBUGGING
- 19 .comment      0000007b  00000000  00000000  000c5a55  2**0
+ 19 .comment      0000007b  00000000  00000000  000c5a8d  2**0
                   CONTENTS, READONLY
- 20 .debug_frame  0000283c  00000000  00000000  000c5ad0  2**2
+ 20 .debug_frame  0000283c  00000000  00000000  000c5b08  2**2
                   CONTENTS, READONLY, DEBUGGING
 
 Disassembly of section .text:
@@ -246,7 +246,7 @@ int main(void)
  8000226:	f000 fc75 	bl	8000b14 <HAL_Init>
 
   /* USER CODE BEGIN Init */
-  // init bytes to send
+  /* init bytes to send */
   for(int i=0; i<C_N_BYTES_TOT; i++){
  800022a:	2300      	movs	r3, #0
  800022c:	607b      	str	r3, [r7, #4]
@@ -264,8 +264,8 @@ int main(void)
  8000240:	687b      	ldr	r3, [r7, #4]
  8000242:	2b04      	cmp	r3, #4
  8000244:	d9f4      	bls.n	8000230 <main+0x10>
-//  bToSend[C_POS_START_BYTE] = C_START_BYTE;
-//  bToSend[C_POS_STOP_BYTE] = C_STOP_BYTE;
+  }
+
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -282,14 +282,14 @@ int main(void)
  800024e:	f000 f8ad 	bl	80003ac <MX_USART2_UART_Init>
   MX_TIM2_Init();
  8000252:	f000 f857 	bl	8000304 <MX_TIM2_Init>
-  //HAL_TIM_Base_Start_IT(&htim2);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
  8000256:	e7fe      	b.n	8000256 <main+0x36>
- 8000258:	20000118 	.word	0x20000118
+ 8000258:	20000114 	.word	0x20000114
 
 0800025c <SystemClock_Config>:
 /**
@@ -523,7 +523,7 @@ static void MX_TIM2_Init(void)
  800039e:	46bd      	mov	sp, r7
  80003a0:	b006      	add	sp, #24
  80003a2:	bd80      	pop	{r7, pc}
- 80003a4:	20000058 	.word	0x20000058
+ 80003a4:	20000054 	.word	0x20000054
  80003a8:	0000bb7f 	.word	0x0000bb7f
 
 080003ac <MX_USART2_UART_Init>:
@@ -599,7 +599,7 @@ static void MX_USART2_UART_Init(void)
  80003fe:	46c0      	nop			; (mov r8, r8)
  8000400:	46bd      	mov	sp, r7
  8000402:	bd80      	pop	{r7, pc}
- 8000404:	20000098 	.word	0x20000098
+ 8000404:	20000094 	.word	0x20000094
  8000408:	40004400 	.word	0x40004400
 
 0800040c <MX_GPIO_Init>:
@@ -886,8 +886,11 @@ static void MX_GPIO_Init(void)
  80005d4:	10310000 	.word	0x10310000
 
 080005d8 <HAL_GPIO_EXTI_Callback>:
-
-/* USER CODE BEGIN 4 */
+/**
+ * @brief IRQ Callback on : Hall_A, Hall_B and RX pins
+ * @param[in] GPIO_Pin
+ * @return void
+ */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
  80005d8:	b580      	push	{r7, lr}
  80005da:	b084      	sub	sp, #16
@@ -895,34 +898,31 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
  80005de:	0002      	movs	r2, r0
  80005e0:	1dbb      	adds	r3, r7, #6
  80005e2:	801a      	strh	r2, [r3, #0]
+	/* General interrupt pin set */
+	HAL_GPIO_WritePin(DEBUG_INT_GPIO_Port, DEBUG_INT_Pin, GPIO_PIN_SET);
+ 80005e4:	4b9e      	ldr	r3, [pc, #632]	; (8000860 <HAL_GPIO_EXTI_Callback+0x288>)
+ 80005e6:	2201      	movs	r2, #1
+ 80005e8:	2108      	movs	r1, #8
+ 80005ea:	0018      	movs	r0, r3
+ 80005ec:	f000 fd69 	bl	80010c2 <HAL_GPIO_WritePin>
 	switch(GPIO_Pin){
- 80005e4:	1dbb      	adds	r3, r7, #6
- 80005e6:	881b      	ldrh	r3, [r3, #0]
- 80005e8:	2280      	movs	r2, #128	; 0x80
- 80005ea:	0112      	lsls	r2, r2, #4
- 80005ec:	4293      	cmp	r3, r2
- 80005ee:	d100      	bne.n	80005f2 <HAL_GPIO_EXTI_Callback+0x1a>
- 80005f0:	e0bc      	b.n	800076c <HAL_GPIO_EXTI_Callback+0x194>
- 80005f2:	2280      	movs	r2, #128	; 0x80
- 80005f4:	0152      	lsls	r2, r2, #5
- 80005f6:	4293      	cmp	r3, r2
- 80005f8:	d100      	bne.n	80005fc <HAL_GPIO_EXTI_Callback+0x24>
- 80005fa:	e0f3      	b.n	80007e4 <HAL_GPIO_EXTI_Callback+0x20c>
- 80005fc:	2b04      	cmp	r3, #4
- 80005fe:	d000      	beq.n	8000602 <HAL_GPIO_EXTI_Callback+0x2a>
-				pulse_counter--;
-			}
-			HAL_GPIO_WritePin(DEBUG_ISR_HALL_B_GPIO_Port, DEBUG_ISR_HALL_B_Pin, GPIO_PIN_RESET);
-			break;
-	}
-}
- 8000600:	e12a      	b.n	8000858 <HAL_GPIO_EXTI_Callback+0x280>
-			HAL_GPIO_WritePin(DEBUG_INT_GPIO_Port, DEBUG_INT_Pin, GPIO_PIN_SET);
- 8000602:	4b97      	ldr	r3, [pc, #604]	; (8000860 <HAL_GPIO_EXTI_Callback+0x288>)
- 8000604:	2201      	movs	r2, #1
- 8000606:	2108      	movs	r1, #8
- 8000608:	0018      	movs	r0, r3
- 800060a:	f000 fd5a 	bl	80010c2 <HAL_GPIO_WritePin>
+ 80005f0:	1dbb      	adds	r3, r7, #6
+ 80005f2:	881b      	ldrh	r3, [r3, #0]
+ 80005f4:	2280      	movs	r2, #128	; 0x80
+ 80005f6:	0112      	lsls	r2, r2, #4
+ 80005f8:	4293      	cmp	r3, r2
+ 80005fa:	d100      	bne.n	80005fe <HAL_GPIO_EXTI_Callback+0x26>
+ 80005fc:	e0b0      	b.n	8000760 <HAL_GPIO_EXTI_Callback+0x188>
+ 80005fe:	2280      	movs	r2, #128	; 0x80
+ 8000600:	0152      	lsls	r2, r2, #5
+ 8000602:	4293      	cmp	r3, r2
+ 8000604:	d100      	bne.n	8000608 <HAL_GPIO_EXTI_Callback+0x30>
+ 8000606:	e0e7      	b.n	80007d8 <HAL_GPIO_EXTI_Callback+0x200>
+ 8000608:	2b04      	cmp	r3, #4
+ 800060a:	d000      	beq.n	800060e <HAL_GPIO_EXTI_Callback+0x36>
+ 800060c:	e11e      	b.n	800084c <HAL_GPIO_EXTI_Callback+0x274>
+		case RX_Pin:
+			/* Debug Interrupt Pin SET to see when we enter in the callback function */
 			HAL_GPIO_WritePin(DEBUG_ISR_COMM_GPIO_Port, DEBUG_ISR_COMM_Pin, GPIO_PIN_SET);
  800060e:	2380      	movs	r3, #128	; 0x80
  8000610:	0159      	lsls	r1, r3, #5
@@ -931,7 +931,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
  8000616:	2201      	movs	r2, #1
  8000618:	0018      	movs	r0, r3
  800061a:	f000 fd52 	bl	80010c2 <HAL_GPIO_WritePin>
-			if(!is_sending){ // was in falling edge detection at first
+			/* First, if we're not already communicating : we are in falling edge detection */
+			if(!is_sending){
  800061e:	4b91      	ldr	r3, [pc, #580]	; (8000864 <HAL_GPIO_EXTI_Callback+0x28c>)
  8000620:	781b      	ldrb	r3, [r3, #0]
  8000622:	2201      	movs	r2, #1
@@ -939,21 +940,30 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
  8000626:	b2db      	uxtb	r3, r3
  8000628:	2b00      	cmp	r3, #0
  800062a:	d04d      	beq.n	80006c8 <HAL_GPIO_EXTI_Callback+0xf0>
+				/* At this point RPi is waiting for us to reset our TX
+				 * So can take the time we need (<timeout) to prep the bytes to send before responding
+				 */
+
+				/* First set is_sending flag */
 				is_sending = 1;
  800062c:	4b8d      	ldr	r3, [pc, #564]	; (8000864 <HAL_GPIO_EXTI_Callback+0x28c>)
  800062e:	2201      	movs	r2, #1
  8000630:	701a      	strb	r2, [r3, #0]
+
+				/* Start interrupt for timeout on communication */
 				HAL_TIM_Base_Start_IT(&htim2);
  8000632:	4b8d      	ldr	r3, [pc, #564]	; (8000868 <HAL_GPIO_EXTI_Callback+0x290>)
  8000634:	0018      	movs	r0, r3
  8000636:	f001 fba7 	bl	8001d88 <HAL_TIM_Base_Start_IT>
-			    HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+			    HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);	// On-board LED will be set in case of timeout
  800063a:	2390      	movs	r3, #144	; 0x90
  800063c:	05db      	lsls	r3, r3, #23
  800063e:	2200      	movs	r2, #0
  8000640:	2120      	movs	r1, #32
  8000642:	0018      	movs	r0, r3
  8000644:	f000 fd3d 	bl	80010c2 <HAL_GPIO_WritePin>
+
+				/* set pin on rising edge */
 				GPIO_InitStruct_RX.Mode = GPIO_MODE_IT_RISING;
  8000648:	4b88      	ldr	r3, [pc, #544]	; (800086c <HAL_GPIO_EXTI_Callback+0x294>)
  800064a:	4a89      	ldr	r2, [pc, #548]	; (8000870 <HAL_GPIO_EXTI_Callback+0x298>)
@@ -964,6 +974,11 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
  8000652:	0019      	movs	r1, r3
  8000654:	0010      	movs	r0, r2
  8000656:	f000 fb9f 	bl	8000d98 <HAL_GPIO_Init>
+
+				/* On-board LED set : rising edge mode notifier */
+				//HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
+
+				// Reset bit & byte counters
 				tx_bit_sending = 0;
  800065a:	4b87      	ldr	r3, [pc, #540]	; (8000878 <HAL_GPIO_EXTI_Callback+0x2a0>)
  800065c:	2200      	movs	r2, #0
@@ -972,15 +987,21 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
  8000660:	4b86      	ldr	r3, [pc, #536]	; (800087c <HAL_GPIO_EXTI_Callback+0x2a4>)
  8000662:	2200      	movs	r2, #0
  8000664:	601a      	str	r2, [r3, #0]
-				checksum = 0;//(unsigned char) (C_START_BYTE + C_STOP_BYTE);
+				 * before we accept to start communication
+				 * Optimisation done : reduce the nbr of packets to send in order to minimize the time spent in this ISR
+				 */
+
+				/* Preparation of package to send */
+				checksum = 0;
  8000666:	4b86      	ldr	r3, [pc, #536]	; (8000880 <HAL_GPIO_EXTI_Callback+0x2a8>)
  8000668:	2200      	movs	r2, #0
  800066a:	701a      	strb	r2, [r3, #0]
-				nbr_degrees_to_send = pulse_counter;
+				nbr_degrees_to_send = pulse_counter;		// no conversion factor needed in this case
  800066c:	4b85      	ldr	r3, [pc, #532]	; (8000884 <HAL_GPIO_EXTI_Callback+0x2ac>)
  800066e:	681a      	ldr	r2, [r3, #0]
  8000670:	4b85      	ldr	r3, [pc, #532]	; (8000888 <HAL_GPIO_EXTI_Callback+0x2b0>)
  8000672:	601a      	str	r2, [r3, #0]
+
 				for(int i = 0; i < C_N_BYTES_DATA; i++){
  8000674:	2300      	movs	r3, #0
  8000676:	60fb      	str	r3, [r7, #12]
@@ -1016,11 +1037,15 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
  80006ac:	68fb      	ldr	r3, [r7, #12]
  80006ae:	2b03      	cmp	r3, #3
  80006b0:	d9e3      	bls.n	800067a <HAL_GPIO_EXTI_Callback+0xa2>
+				}
+
 				bToSend[C_POS_CHECKSUM] = checksum;
  80006b2:	4b73      	ldr	r3, [pc, #460]	; (8000880 <HAL_GPIO_EXTI_Callback+0x2a8>)
  80006b4:	781a      	ldrb	r2, [r3, #0]
  80006b6:	4b75      	ldr	r3, [pc, #468]	; (800088c <HAL_GPIO_EXTI_Callback+0x2b4>)
  80006b8:	711a      	strb	r2, [r3, #4]
+
+				/* TX pin reset to tell RPi to start its clock */
 				HAL_GPIO_WritePin(TX_GPIO_Port, TX_Pin, GPIO_PIN_RESET);
  80006ba:	4b6e      	ldr	r3, [pc, #440]	; (8000874 <HAL_GPIO_EXTI_Callback+0x29c>)
  80006bc:	2200      	movs	r2, #0
@@ -1028,41 +1053,58 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
  80006c0:	0018      	movs	r0, r3
  80006c2:	f000 fcfe 	bl	80010c2 <HAL_GPIO_WritePin>
  80006c6:	e042      	b.n	800074e <HAL_GPIO_EXTI_Callback+0x176>
-				if(tx_byte_sending == C_N_BYTES_TOT)	// last byte+1 : end communication
+			}
+			else{
+				/* is sending data on rising edge */
+				if(tx_byte_sending == C_N_BYTES_TOT)	// last byte+1 : end of communication
  80006c8:	4b6c      	ldr	r3, [pc, #432]	; (800087c <HAL_GPIO_EXTI_Callback+0x2a4>)
  80006ca:	681b      	ldr	r3, [r3, #0]
  80006cc:	2b05      	cmp	r3, #5
  80006ce:	d11a      	bne.n	8000706 <HAL_GPIO_EXTI_Callback+0x12e>
-					is_sending = 0;
- 80006d0:	4b64      	ldr	r3, [pc, #400]	; (8000864 <HAL_GPIO_EXTI_Callback+0x28c>)
- 80006d2:	2200      	movs	r2, #0
- 80006d4:	701a      	strb	r2, [r3, #0]
+				{
+					/*Start interrupt for timeout on communication */
 					HAL_TIM_Base_Stop_IT(&htim2);
- 80006d6:	4b64      	ldr	r3, [pc, #400]	; (8000868 <HAL_GPIO_EXTI_Callback+0x290>)
- 80006d8:	0018      	movs	r0, r3
- 80006da:	f001 fb77 	bl	8001dcc <HAL_TIM_Base_Stop_IT>
+ 80006d0:	4b65      	ldr	r3, [pc, #404]	; (8000868 <HAL_GPIO_EXTI_Callback+0x290>)
+ 80006d2:	0018      	movs	r0, r3
+ 80006d4:	f001 fb7a 	bl	8001dcc <HAL_TIM_Base_Stop_IT>
 					htim2.Instance->CNT = 0;
- 80006de:	4b62      	ldr	r3, [pc, #392]	; (8000868 <HAL_GPIO_EXTI_Callback+0x290>)
- 80006e0:	681b      	ldr	r3, [r3, #0]
- 80006e2:	2200      	movs	r2, #0
- 80006e4:	625a      	str	r2, [r3, #36]	; 0x24
+ 80006d8:	4b63      	ldr	r3, [pc, #396]	; (8000868 <HAL_GPIO_EXTI_Callback+0x290>)
+ 80006da:	681b      	ldr	r3, [r3, #0]
+ 80006dc:	2200      	movs	r2, #0
+ 80006de:	625a      	str	r2, [r3, #36]	; 0x24
+
+					// TX pin set for ending communication
 					HAL_GPIO_WritePin(TX_GPIO_Port, TX_Pin, GPIO_PIN_SET);
- 80006e6:	4b63      	ldr	r3, [pc, #396]	; (8000874 <HAL_GPIO_EXTI_Callback+0x29c>)
- 80006e8:	2201      	movs	r2, #1
- 80006ea:	2102      	movs	r1, #2
- 80006ec:	0018      	movs	r0, r3
- 80006ee:	f000 fce8 	bl	80010c2 <HAL_GPIO_WritePin>
+ 80006e0:	4b64      	ldr	r3, [pc, #400]	; (8000874 <HAL_GPIO_EXTI_Callback+0x29c>)
+ 80006e2:	2201      	movs	r2, #1
+ 80006e4:	2102      	movs	r1, #2
+ 80006e6:	0018      	movs	r0, r3
+ 80006e8:	f000 fceb 	bl	80010c2 <HAL_GPIO_WritePin>
+
+					// set RX pin on falling edge again
 					GPIO_InitStruct_RX.Mode = GPIO_MODE_IT_FALLING;
- 80006f2:	4b5e      	ldr	r3, [pc, #376]	; (800086c <HAL_GPIO_EXTI_Callback+0x294>)
- 80006f4:	4a66      	ldr	r2, [pc, #408]	; (8000890 <HAL_GPIO_EXTI_Callback+0x2b8>)
- 80006f6:	605a      	str	r2, [r3, #4]
+ 80006ec:	4b5f      	ldr	r3, [pc, #380]	; (800086c <HAL_GPIO_EXTI_Callback+0x294>)
+ 80006ee:	4a68      	ldr	r2, [pc, #416]	; (8000890 <HAL_GPIO_EXTI_Callback+0x2b8>)
+ 80006f0:	605a      	str	r2, [r3, #4]
 					HAL_GPIO_Init(RX_GPIO_Port, &GPIO_InitStruct_RX);
- 80006f8:	4b5c      	ldr	r3, [pc, #368]	; (800086c <HAL_GPIO_EXTI_Callback+0x294>)
- 80006fa:	4a5e      	ldr	r2, [pc, #376]	; (8000874 <HAL_GPIO_EXTI_Callback+0x29c>)
- 80006fc:	0019      	movs	r1, r3
- 80006fe:	0010      	movs	r0, r2
- 8000700:	f000 fb4a 	bl	8000d98 <HAL_GPIO_Init>
+ 80006f2:	4b5e      	ldr	r3, [pc, #376]	; (800086c <HAL_GPIO_EXTI_Callback+0x294>)
+ 80006f4:	4a5f      	ldr	r2, [pc, #380]	; (8000874 <HAL_GPIO_EXTI_Callback+0x29c>)
+ 80006f6:	0019      	movs	r1, r3
+ 80006f8:	0010      	movs	r0, r2
+ 80006fa:	f000 fb4d 	bl	8000d98 <HAL_GPIO_Init>
+
+					/* On-board LED reset : falling edge mode notifier */
+					//HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+
+					/* Clear is_sending flag at last */
+					is_sending = 0;
+ 80006fe:	4b59      	ldr	r3, [pc, #356]	; (8000864 <HAL_GPIO_EXTI_Callback+0x28c>)
+ 8000700:	2200      	movs	r2, #0
+ 8000702:	701a      	strb	r2, [r3, #0]
  8000704:	e023      	b.n	800074e <HAL_GPIO_EXTI_Callback+0x176>
+				}
+				else{									// sending bits of each byte : communication running
+					/* Set TX to the bit value tracked */
 					HAL_GPIO_WritePin(TX_GPIO_Port, TX_Pin, (bToSend[tx_byte_sending] & (1<<tx_bit_sending)));
  8000706:	4b5d      	ldr	r3, [pc, #372]	; (800087c <HAL_GPIO_EXTI_Callback+0x2a4>)
  8000708:	681b      	ldr	r3, [r3, #0]
@@ -1082,6 +1124,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
  8000724:	001a      	movs	r2, r3
  8000726:	2102      	movs	r1, #2
  8000728:	f000 fccb 	bl	80010c2 <HAL_GPIO_WritePin>
+
+					/* Increment stuff*/
 					tx_bit_sending++;
  800072c:	4b52      	ldr	r3, [pc, #328]	; (8000878 <HAL_GPIO_EXTI_Callback+0x2a0>)
  800072e:	681b      	ldr	r3, [r3, #0]
@@ -1103,234 +1147,261 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
  8000748:	1c5a      	adds	r2, r3, #1
  800074a:	4b4c      	ldr	r3, [pc, #304]	; (800087c <HAL_GPIO_EXTI_Callback+0x2a4>)
  800074c:	601a      	str	r2, [r3, #0]
-			HAL_GPIO_WritePin(DEBUG_INT_GPIO_Port, DEBUG_INT_Pin, GPIO_PIN_RESET);
- 800074e:	4b44      	ldr	r3, [pc, #272]	; (8000860 <HAL_GPIO_EXTI_Callback+0x288>)
- 8000750:	2200      	movs	r2, #0
- 8000752:	2108      	movs	r1, #8
- 8000754:	0018      	movs	r0, r3
- 8000756:	f000 fcb4 	bl	80010c2 <HAL_GPIO_WritePin>
+					}
+				}
+			}
+			/* Debug ISR pin reset : we're out of comm ISR */
 			HAL_GPIO_WritePin(DEBUG_ISR_COMM_GPIO_Port, DEBUG_ISR_COMM_Pin, GPIO_PIN_RESET);
- 800075a:	2380      	movs	r3, #128	; 0x80
- 800075c:	0159      	lsls	r1, r3, #5
- 800075e:	2390      	movs	r3, #144	; 0x90
- 8000760:	05db      	lsls	r3, r3, #23
- 8000762:	2200      	movs	r2, #0
- 8000764:	0018      	movs	r0, r3
- 8000766:	f000 fcac 	bl	80010c2 <HAL_GPIO_WritePin>
+ 800074e:	2380      	movs	r3, #128	; 0x80
+ 8000750:	0159      	lsls	r1, r3, #5
+ 8000752:	2390      	movs	r3, #144	; 0x90
+ 8000754:	05db      	lsls	r3, r3, #23
+ 8000756:	2200      	movs	r2, #0
+ 8000758:	0018      	movs	r0, r3
+ 800075a:	f000 fcb2 	bl	80010c2 <HAL_GPIO_WritePin>
 			break;
- 800076a:	e075      	b.n	8000858 <HAL_GPIO_EXTI_Callback+0x280>
+ 800075e:	e075      	b.n	800084c <HAL_GPIO_EXTI_Callback+0x274>
+
+		case Hall_A_Pin:
+			/* Debug ISR pin reset : we're in Hall_A interrupt */
 			HAL_GPIO_WritePin(DEBUG_ISR_HALL_A_GPIO_Port, DEBUG_ISR_HALL_A_Pin, GPIO_PIN_SET);
- 800076c:	2380      	movs	r3, #128	; 0x80
- 800076e:	0119      	lsls	r1, r3, #4
- 8000770:	2390      	movs	r3, #144	; 0x90
- 8000772:	05db      	lsls	r3, r3, #23
- 8000774:	2201      	movs	r2, #1
- 8000776:	0018      	movs	r0, r3
- 8000778:	f000 fca3 	bl	80010c2 <HAL_GPIO_WritePin>
+ 8000760:	2380      	movs	r3, #128	; 0x80
+ 8000762:	0119      	lsls	r1, r3, #4
+ 8000764:	2390      	movs	r3, #144	; 0x90
+ 8000766:	05db      	lsls	r3, r3, #23
+ 8000768:	2201      	movs	r2, #1
+ 800076a:	0018      	movs	r0, r3
+ 800076c:	f000 fca9 	bl	80010c2 <HAL_GPIO_WritePin>
+			/* first we need to know the state of Hall_B */
 			encoder_on_HATrig[1] = HAL_GPIO_ReadPin(Hall_B_GPIO_Port, Hall_B_Pin);
- 800077c:	2380      	movs	r3, #128	; 0x80
- 800077e:	015b      	lsls	r3, r3, #5
- 8000780:	4a3c      	ldr	r2, [pc, #240]	; (8000874 <HAL_GPIO_EXTI_Callback+0x29c>)
- 8000782:	0019      	movs	r1, r3
- 8000784:	0010      	movs	r0, r2
- 8000786:	f000 fc7f 	bl	8001088 <HAL_GPIO_ReadPin>
- 800078a:	0003      	movs	r3, r0
- 800078c:	1e5a      	subs	r2, r3, #1
- 800078e:	4193      	sbcs	r3, r2
- 8000790:	b2da      	uxtb	r2, r3
- 8000792:	4b40      	ldr	r3, [pc, #256]	; (8000894 <HAL_GPIO_EXTI_Callback+0x2bc>)
- 8000794:	705a      	strb	r2, [r3, #1]
+ 8000770:	2380      	movs	r3, #128	; 0x80
+ 8000772:	015b      	lsls	r3, r3, #5
+ 8000774:	4a3f      	ldr	r2, [pc, #252]	; (8000874 <HAL_GPIO_EXTI_Callback+0x29c>)
+ 8000776:	0019      	movs	r1, r3
+ 8000778:	0010      	movs	r0, r2
+ 800077a:	f000 fc85 	bl	8001088 <HAL_GPIO_ReadPin>
+ 800077e:	0003      	movs	r3, r0
+ 8000780:	1e5a      	subs	r2, r3, #1
+ 8000782:	4193      	sbcs	r3, r2
+ 8000784:	b2da      	uxtb	r2, r3
+ 8000786:	4b43      	ldr	r3, [pc, #268]	; (8000894 <HAL_GPIO_EXTI_Callback+0x2bc>)
+ 8000788:	705a      	strb	r2, [r3, #1]
 			encoder_on_HATrig[0] = HAL_GPIO_ReadPin(Hall_A_GPIO_Port, Hall_A_Pin);
- 8000796:	2380      	movs	r3, #128	; 0x80
- 8000798:	011b      	lsls	r3, r3, #4
- 800079a:	4a36      	ldr	r2, [pc, #216]	; (8000874 <HAL_GPIO_EXTI_Callback+0x29c>)
- 800079c:	0019      	movs	r1, r3
- 800079e:	0010      	movs	r0, r2
- 80007a0:	f000 fc72 	bl	8001088 <HAL_GPIO_ReadPin>
- 80007a4:	0003      	movs	r3, r0
- 80007a6:	1e5a      	subs	r2, r3, #1
- 80007a8:	4193      	sbcs	r3, r2
- 80007aa:	b2da      	uxtb	r2, r3
- 80007ac:	4b39      	ldr	r3, [pc, #228]	; (8000894 <HAL_GPIO_EXTI_Callback+0x2bc>)
- 80007ae:	701a      	strb	r2, [r3, #0]
+ 800078a:	2380      	movs	r3, #128	; 0x80
+ 800078c:	011b      	lsls	r3, r3, #4
+ 800078e:	4a39      	ldr	r2, [pc, #228]	; (8000874 <HAL_GPIO_EXTI_Callback+0x29c>)
+ 8000790:	0019      	movs	r1, r3
+ 8000792:	0010      	movs	r0, r2
+ 8000794:	f000 fc78 	bl	8001088 <HAL_GPIO_ReadPin>
+ 8000798:	0003      	movs	r3, r0
+ 800079a:	1e5a      	subs	r2, r3, #1
+ 800079c:	4193      	sbcs	r3, r2
+ 800079e:	b2da      	uxtb	r2, r3
+ 80007a0:	4b3c      	ldr	r3, [pc, #240]	; (8000894 <HAL_GPIO_EXTI_Callback+0x2bc>)
+ 80007a2:	701a      	strb	r2, [r3, #0]
+
+			/* The following could be moved in main but it's still light atomic operations */
+			/* increment or decrement nbr of pulse measured according to the direction of rotation :
+			 * if it is rotating clock wise (CW), A always trigs before B, so they're always different */
 			if(encoder_on_HATrig[0] != encoder_on_HATrig[1]){
- 80007b0:	4b38      	ldr	r3, [pc, #224]	; (8000894 <HAL_GPIO_EXTI_Callback+0x2bc>)
- 80007b2:	781a      	ldrb	r2, [r3, #0]
- 80007b4:	4b37      	ldr	r3, [pc, #220]	; (8000894 <HAL_GPIO_EXTI_Callback+0x2bc>)
- 80007b6:	785b      	ldrb	r3, [r3, #1]
- 80007b8:	429a      	cmp	r2, r3
- 80007ba:	d005      	beq.n	80007c8 <HAL_GPIO_EXTI_Callback+0x1f0>
+ 80007a4:	4b3b      	ldr	r3, [pc, #236]	; (8000894 <HAL_GPIO_EXTI_Callback+0x2bc>)
+ 80007a6:	781a      	ldrb	r2, [r3, #0]
+ 80007a8:	4b3a      	ldr	r3, [pc, #232]	; (8000894 <HAL_GPIO_EXTI_Callback+0x2bc>)
+ 80007aa:	785b      	ldrb	r3, [r3, #1]
+ 80007ac:	429a      	cmp	r2, r3
+ 80007ae:	d005      	beq.n	80007bc <HAL_GPIO_EXTI_Callback+0x1e4>
 				pulse_counter++;	// atomic operation
+ 80007b0:	4b34      	ldr	r3, [pc, #208]	; (8000884 <HAL_GPIO_EXTI_Callback+0x2ac>)
+ 80007b2:	681b      	ldr	r3, [r3, #0]
+ 80007b4:	1c5a      	adds	r2, r3, #1
+ 80007b6:	4b33      	ldr	r3, [pc, #204]	; (8000884 <HAL_GPIO_EXTI_Callback+0x2ac>)
+ 80007b8:	601a      	str	r2, [r3, #0]
+ 80007ba:	e004      	b.n	80007c6 <HAL_GPIO_EXTI_Callback+0x1ee>
+			}
+			else{
+				pulse_counter--;	// atomic operation
  80007bc:	4b31      	ldr	r3, [pc, #196]	; (8000884 <HAL_GPIO_EXTI_Callback+0x2ac>)
  80007be:	681b      	ldr	r3, [r3, #0]
- 80007c0:	1c5a      	adds	r2, r3, #1
+ 80007c0:	1e5a      	subs	r2, r3, #1
  80007c2:	4b30      	ldr	r3, [pc, #192]	; (8000884 <HAL_GPIO_EXTI_Callback+0x2ac>)
  80007c4:	601a      	str	r2, [r3, #0]
- 80007c6:	e004      	b.n	80007d2 <HAL_GPIO_EXTI_Callback+0x1fa>
-				pulse_counter--;
- 80007c8:	4b2e      	ldr	r3, [pc, #184]	; (8000884 <HAL_GPIO_EXTI_Callback+0x2ac>)
- 80007ca:	681b      	ldr	r3, [r3, #0]
- 80007cc:	1e5a      	subs	r2, r3, #1
- 80007ce:	4b2d      	ldr	r3, [pc, #180]	; (8000884 <HAL_GPIO_EXTI_Callback+0x2ac>)
- 80007d0:	601a      	str	r2, [r3, #0]
+			}
+			/* Debug ISR pin reset : we're out of Hall_A interrupt */
 			HAL_GPIO_WritePin(DEBUG_ISR_HALL_A_GPIO_Port, DEBUG_ISR_HALL_A_Pin, GPIO_PIN_RESET);
- 80007d2:	2380      	movs	r3, #128	; 0x80
- 80007d4:	0119      	lsls	r1, r3, #4
- 80007d6:	2390      	movs	r3, #144	; 0x90
- 80007d8:	05db      	lsls	r3, r3, #23
- 80007da:	2200      	movs	r2, #0
- 80007dc:	0018      	movs	r0, r3
- 80007de:	f000 fc70 	bl	80010c2 <HAL_GPIO_WritePin>
+ 80007c6:	2380      	movs	r3, #128	; 0x80
+ 80007c8:	0119      	lsls	r1, r3, #4
+ 80007ca:	2390      	movs	r3, #144	; 0x90
+ 80007cc:	05db      	lsls	r3, r3, #23
+ 80007ce:	2200      	movs	r2, #0
+ 80007d0:	0018      	movs	r0, r3
+ 80007d2:	f000 fc76 	bl	80010c2 <HAL_GPIO_WritePin>
 			break;
- 80007e2:	e039      	b.n	8000858 <HAL_GPIO_EXTI_Callback+0x280>
+ 80007d6:	e039      	b.n	800084c <HAL_GPIO_EXTI_Callback+0x274>
+
+		case Hall_B_Pin:
+			/* Debug ISR pin reset : we're in Hall_B interrupt */
 			HAL_GPIO_WritePin(DEBUG_ISR_HALL_B_GPIO_Port, DEBUG_ISR_HALL_B_Pin, GPIO_PIN_SET);
- 80007e4:	2390      	movs	r3, #144	; 0x90
- 80007e6:	05db      	lsls	r3, r3, #23
- 80007e8:	2201      	movs	r2, #1
- 80007ea:	2140      	movs	r1, #64	; 0x40
- 80007ec:	0018      	movs	r0, r3
- 80007ee:	f000 fc68 	bl	80010c2 <HAL_GPIO_WritePin>
-			encoder_on_HBTrig[1] = HAL_GPIO_ReadPin(Hall_B_GPIO_Port, Hall_B_Pin);
- 80007f2:	2380      	movs	r3, #128	; 0x80
- 80007f4:	015b      	lsls	r3, r3, #5
- 80007f6:	4a1f      	ldr	r2, [pc, #124]	; (8000874 <HAL_GPIO_EXTI_Callback+0x29c>)
- 80007f8:	0019      	movs	r1, r3
- 80007fa:	0010      	movs	r0, r2
- 80007fc:	f000 fc44 	bl	8001088 <HAL_GPIO_ReadPin>
- 8000800:	0003      	movs	r3, r0
- 8000802:	1e5a      	subs	r2, r3, #1
- 8000804:	4193      	sbcs	r3, r2
- 8000806:	b2da      	uxtb	r2, r3
- 8000808:	4b23      	ldr	r3, [pc, #140]	; (8000898 <HAL_GPIO_EXTI_Callback+0x2c0>)
- 800080a:	705a      	strb	r2, [r3, #1]
+ 80007d8:	2390      	movs	r3, #144	; 0x90
+ 80007da:	05db      	lsls	r3, r3, #23
+ 80007dc:	2201      	movs	r2, #1
+ 80007de:	2140      	movs	r1, #64	; 0x40
+ 80007e0:	0018      	movs	r0, r3
+ 80007e2:	f000 fc6e 	bl	80010c2 <HAL_GPIO_WritePin>
+			/* first we need to know the state of Hall_A */
 			encoder_on_HBTrig[0] = HAL_GPIO_ReadPin(Hall_A_GPIO_Port, Hall_A_Pin);
- 800080c:	2380      	movs	r3, #128	; 0x80
- 800080e:	011b      	lsls	r3, r3, #4
- 8000810:	4a18      	ldr	r2, [pc, #96]	; (8000874 <HAL_GPIO_EXTI_Callback+0x29c>)
- 8000812:	0019      	movs	r1, r3
- 8000814:	0010      	movs	r0, r2
- 8000816:	f000 fc37 	bl	8001088 <HAL_GPIO_ReadPin>
- 800081a:	0003      	movs	r3, r0
- 800081c:	1e5a      	subs	r2, r3, #1
- 800081e:	4193      	sbcs	r3, r2
- 8000820:	b2da      	uxtb	r2, r3
- 8000822:	4b1d      	ldr	r3, [pc, #116]	; (8000898 <HAL_GPIO_EXTI_Callback+0x2c0>)
- 8000824:	701a      	strb	r2, [r3, #0]
+ 80007e6:	2380      	movs	r3, #128	; 0x80
+ 80007e8:	011b      	lsls	r3, r3, #4
+ 80007ea:	4a22      	ldr	r2, [pc, #136]	; (8000874 <HAL_GPIO_EXTI_Callback+0x29c>)
+ 80007ec:	0019      	movs	r1, r3
+ 80007ee:	0010      	movs	r0, r2
+ 80007f0:	f000 fc4a 	bl	8001088 <HAL_GPIO_ReadPin>
+ 80007f4:	0003      	movs	r3, r0
+ 80007f6:	1e5a      	subs	r2, r3, #1
+ 80007f8:	4193      	sbcs	r3, r2
+ 80007fa:	b2da      	uxtb	r2, r3
+ 80007fc:	4b26      	ldr	r3, [pc, #152]	; (8000898 <HAL_GPIO_EXTI_Callback+0x2c0>)
+ 80007fe:	701a      	strb	r2, [r3, #0]
+			encoder_on_HBTrig[1] = HAL_GPIO_ReadPin(Hall_B_GPIO_Port, Hall_B_Pin);
+ 8000800:	2380      	movs	r3, #128	; 0x80
+ 8000802:	015b      	lsls	r3, r3, #5
+ 8000804:	4a1b      	ldr	r2, [pc, #108]	; (8000874 <HAL_GPIO_EXTI_Callback+0x29c>)
+ 8000806:	0019      	movs	r1, r3
+ 8000808:	0010      	movs	r0, r2
+ 800080a:	f000 fc3d 	bl	8001088 <HAL_GPIO_ReadPin>
+ 800080e:	0003      	movs	r3, r0
+ 8000810:	1e5a      	subs	r2, r3, #1
+ 8000812:	4193      	sbcs	r3, r2
+ 8000814:	b2da      	uxtb	r2, r3
+ 8000816:	4b20      	ldr	r3, [pc, #128]	; (8000898 <HAL_GPIO_EXTI_Callback+0x2c0>)
+ 8000818:	705a      	strb	r2, [r3, #1]
+
+			/* The following could be moved in main but it's still light atomic operations */
+			/* increment or decrement nbr of pulse measured according to the direction of rotation :
+			 * if it is rotating clock wise (CW), B always trigs after A, so they're always equal */
 			if(encoder_on_HBTrig[0] == encoder_on_HBTrig[1]){
- 8000826:	4b1c      	ldr	r3, [pc, #112]	; (8000898 <HAL_GPIO_EXTI_Callback+0x2c0>)
- 8000828:	781a      	ldrb	r2, [r3, #0]
- 800082a:	4b1b      	ldr	r3, [pc, #108]	; (8000898 <HAL_GPIO_EXTI_Callback+0x2c0>)
- 800082c:	785b      	ldrb	r3, [r3, #1]
- 800082e:	429a      	cmp	r2, r3
- 8000830:	d105      	bne.n	800083e <HAL_GPIO_EXTI_Callback+0x266>
+ 800081a:	4b1f      	ldr	r3, [pc, #124]	; (8000898 <HAL_GPIO_EXTI_Callback+0x2c0>)
+ 800081c:	781a      	ldrb	r2, [r3, #0]
+ 800081e:	4b1e      	ldr	r3, [pc, #120]	; (8000898 <HAL_GPIO_EXTI_Callback+0x2c0>)
+ 8000820:	785b      	ldrb	r3, [r3, #1]
+ 8000822:	429a      	cmp	r2, r3
+ 8000824:	d105      	bne.n	8000832 <HAL_GPIO_EXTI_Callback+0x25a>
 				pulse_counter++;	// atomic operation
+ 8000826:	4b17      	ldr	r3, [pc, #92]	; (8000884 <HAL_GPIO_EXTI_Callback+0x2ac>)
+ 8000828:	681b      	ldr	r3, [r3, #0]
+ 800082a:	1c5a      	adds	r2, r3, #1
+ 800082c:	4b15      	ldr	r3, [pc, #84]	; (8000884 <HAL_GPIO_EXTI_Callback+0x2ac>)
+ 800082e:	601a      	str	r2, [r3, #0]
+ 8000830:	e004      	b.n	800083c <HAL_GPIO_EXTI_Callback+0x264>
+			}
+			else{
+				pulse_counter--;	// atomic operation
  8000832:	4b14      	ldr	r3, [pc, #80]	; (8000884 <HAL_GPIO_EXTI_Callback+0x2ac>)
  8000834:	681b      	ldr	r3, [r3, #0]
- 8000836:	1c5a      	adds	r2, r3, #1
+ 8000836:	1e5a      	subs	r2, r3, #1
  8000838:	4b12      	ldr	r3, [pc, #72]	; (8000884 <HAL_GPIO_EXTI_Callback+0x2ac>)
  800083a:	601a      	str	r2, [r3, #0]
- 800083c:	e004      	b.n	8000848 <HAL_GPIO_EXTI_Callback+0x270>
-				pulse_counter--;
- 800083e:	4b11      	ldr	r3, [pc, #68]	; (8000884 <HAL_GPIO_EXTI_Callback+0x2ac>)
- 8000840:	681b      	ldr	r3, [r3, #0]
- 8000842:	1e5a      	subs	r2, r3, #1
- 8000844:	4b0f      	ldr	r3, [pc, #60]	; (8000884 <HAL_GPIO_EXTI_Callback+0x2ac>)
- 8000846:	601a      	str	r2, [r3, #0]
+			}
+			/* Debug ISR pin reset : we're out of Hall_B interrupt */
 			HAL_GPIO_WritePin(DEBUG_ISR_HALL_B_GPIO_Port, DEBUG_ISR_HALL_B_Pin, GPIO_PIN_RESET);
- 8000848:	2390      	movs	r3, #144	; 0x90
- 800084a:	05db      	lsls	r3, r3, #23
- 800084c:	2200      	movs	r2, #0
- 800084e:	2140      	movs	r1, #64	; 0x40
- 8000850:	0018      	movs	r0, r3
- 8000852:	f000 fc36 	bl	80010c2 <HAL_GPIO_WritePin>
+ 800083c:	2390      	movs	r3, #144	; 0x90
+ 800083e:	05db      	lsls	r3, r3, #23
+ 8000840:	2200      	movs	r2, #0
+ 8000842:	2140      	movs	r1, #64	; 0x40
+ 8000844:	0018      	movs	r0, r3
+ 8000846:	f000 fc3c 	bl	80010c2 <HAL_GPIO_WritePin>
 			break;
- 8000856:	46c0      	nop			; (mov r8, r8)
+ 800084a:	46c0      	nop			; (mov r8, r8)
+	}
+	/* General Interrupt debug pin reset */
+	HAL_GPIO_WritePin(DEBUG_INT_GPIO_Port, DEBUG_INT_Pin, GPIO_PIN_RESET);
+ 800084c:	4b04      	ldr	r3, [pc, #16]	; (8000860 <HAL_GPIO_EXTI_Callback+0x288>)
+ 800084e:	2200      	movs	r2, #0
+ 8000850:	2108      	movs	r1, #8
+ 8000852:	0018      	movs	r0, r3
+ 8000854:	f000 fc35 	bl	80010c2 <HAL_GPIO_WritePin>
 }
  8000858:	46c0      	nop			; (mov r8, r8)
  800085a:	46bd      	mov	sp, r7
  800085c:	b004      	add	sp, #16
  800085e:	bd80      	pop	{r7, pc}
  8000860:	48000800 	.word	0x48000800
- 8000864:	2000003c 	.word	0x2000003c
- 8000868:	20000058 	.word	0x20000058
+ 8000864:	20000045 	.word	0x20000045
+ 8000868:	20000054 	.word	0x20000054
  800086c:	20000000 	.word	0x20000000
  8000870:	10110000 	.word	0x10110000
  8000874:	48000400 	.word	0x48000400
- 8000878:	20000054 	.word	0x20000054
- 800087c:	20000120 	.word	0x20000120
- 8000880:	20000050 	.word	0x20000050
- 8000884:	20000048 	.word	0x20000048
- 8000888:	2000004c 	.word	0x2000004c
- 800088c:	20000118 	.word	0x20000118
+ 8000878:	20000050 	.word	0x20000050
+ 800087c:	2000011c 	.word	0x2000011c
+ 8000880:	20000044 	.word	0x20000044
+ 8000884:	2000003c 	.word	0x2000003c
+ 8000888:	20000040 	.word	0x20000040
+ 800088c:	20000114 	.word	0x20000114
  8000890:	10210000 	.word	0x10210000
- 8000894:	20000040 	.word	0x20000040
- 8000898:	20000044 	.word	0x20000044
+ 8000894:	20000048 	.word	0x20000048
+ 8000898:	2000004c 	.word	0x2000004c
 
 0800089c <HAL_TIM_PeriodElapsedCallback>:
-
-
-
+ * @brief IRQ Callback on : htim2 timeout
+ * @param[in] GPIO_Pin
+ * @return void
+ */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim)
 {
  800089c:	b580      	push	{r7, lr}
  800089e:	b082      	sub	sp, #8
  80008a0:	af00      	add	r7, sp, #0
  80008a2:	6078      	str	r0, [r7, #4]
-    HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);	// On-board LED will be set in because of timeout
  80008a4:	2390      	movs	r3, #144	; 0x90
  80008a6:	05db      	lsls	r3, r3, #23
  80008a8:	2201      	movs	r2, #1
  80008aa:	2120      	movs	r1, #32
  80008ac:	0018      	movs	r0, r3
  80008ae:	f000 fc08 	bl	80010c2 <HAL_GPIO_WritePin>
-    // clear is_sending flag first
-    					is_sending = 0;
+    /* clear is_sending flag first */
+	is_sending = 0;
  80008b2:	4b0f      	ldr	r3, [pc, #60]	; (80008f0 <HAL_TIM_PeriodElapsedCallback+0x54>)
  80008b4:	2200      	movs	r2, #0
  80008b6:	701a      	strb	r2, [r3, #0]
-    					//Start interrupt for timeout on communication
-    					HAL_TIM_Base_Stop_IT(&htim2);
+
+	/* Stop interrupt for timeout on communication */
+	HAL_TIM_Base_Stop_IT(&htim2);
  80008b8:	4b0e      	ldr	r3, [pc, #56]	; (80008f4 <HAL_TIM_PeriodElapsedCallback+0x58>)
  80008ba:	0018      	movs	r0, r3
  80008bc:	f001 fa86 	bl	8001dcc <HAL_TIM_Base_Stop_IT>
-    					htim2.Instance->CNT = 0;
+	htim2.Instance->CNT = 0;
  80008c0:	4b0c      	ldr	r3, [pc, #48]	; (80008f4 <HAL_TIM_PeriodElapsedCallback+0x58>)
  80008c2:	681b      	ldr	r3, [r3, #0]
  80008c4:	2200      	movs	r2, #0
  80008c6:	625a      	str	r2, [r3, #36]	; 0x24
 
-    					// tx pin set for ending communication
-    					HAL_GPIO_WritePin(TX_GPIO_Port, TX_Pin, GPIO_PIN_SET);
+	/* TX pin set for ending communication */
+	HAL_GPIO_WritePin(TX_GPIO_Port, TX_Pin, GPIO_PIN_SET);
  80008c8:	4b0b      	ldr	r3, [pc, #44]	; (80008f8 <HAL_TIM_PeriodElapsedCallback+0x5c>)
  80008ca:	2201      	movs	r2, #1
  80008cc:	2102      	movs	r1, #2
  80008ce:	0018      	movs	r0, r3
  80008d0:	f000 fbf7 	bl	80010c2 <HAL_GPIO_WritePin>
 
-    					// set pin on falling edge again
-    					GPIO_InitStruct_RX.Mode = GPIO_MODE_IT_FALLING;
+	/* set RX pin on falling edge again */
+	GPIO_InitStruct_RX.Mode = GPIO_MODE_IT_FALLING;
  80008d4:	4b09      	ldr	r3, [pc, #36]	; (80008fc <HAL_TIM_PeriodElapsedCallback+0x60>)
  80008d6:	4a0a      	ldr	r2, [pc, #40]	; (8000900 <HAL_TIM_PeriodElapsedCallback+0x64>)
  80008d8:	605a      	str	r2, [r3, #4]
-    					HAL_GPIO_Init(RX_GPIO_Port, &GPIO_InitStruct_RX);
+	HAL_GPIO_Init(RX_GPIO_Port, &GPIO_InitStruct_RX);
  80008da:	4b08      	ldr	r3, [pc, #32]	; (80008fc <HAL_TIM_PeriodElapsedCallback+0x60>)
  80008dc:	4a06      	ldr	r2, [pc, #24]	; (80008f8 <HAL_TIM_PeriodElapsedCallback+0x5c>)
  80008de:	0019      	movs	r1, r3
  80008e0:	0010      	movs	r0, r2
  80008e2:	f000 fa59 	bl	8000d98 <HAL_GPIO_Init>
-
-    					//HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
-
-    					// prep for start counting from 0 at the end of the communication
-    					//counter_Hall_A = 0;
 }
  80008e6:	46c0      	nop			; (mov r8, r8)
  80008e8:	46bd      	mov	sp, r7
  80008ea:	b002      	add	sp, #8
  80008ec:	bd80      	pop	{r7, pc}
  80008ee:	46c0      	nop			; (mov r8, r8)
- 80008f0:	2000003c 	.word	0x2000003c
- 80008f4:	20000058 	.word	0x20000058
+ 80008f0:	20000045 	.word	0x20000045
+ 80008f4:	20000054 	.word	0x20000054
  80008f8:	48000400 	.word	0x48000400
  80008fc:	20000000 	.word	0x20000000
  8000900:	10210000 	.word	0x10210000
@@ -1749,7 +1820,7 @@ void TIM2_IRQHandler(void)
  8000aaa:	46bd      	mov	sp, r7
  8000aac:	bd80      	pop	{r7, pc}
  8000aae:	46c0      	nop			; (mov r8, r8)
- 8000ab0:	20000058 	.word	0x20000058
+ 8000ab0:	20000054 	.word	0x20000054
 
 08000ab4 <SystemInit>:
   * @brief  Setup the microcontroller system.
@@ -1772,49 +1843,109 @@ void SystemInit(void)
 	...
 
 08000ac0 <Reset_Handler>:
+
+  .section .text.Reset_Handler
+  .weak Reset_Handler
+  .type Reset_Handler, %function
+Reset_Handler:
+  ldr   r0, =_estack
  8000ac0:	480d      	ldr	r0, [pc, #52]	; (8000af8 <LoopForever+0x2>)
+  mov   sp, r0          /* set stack pointer */
  8000ac2:	4685      	mov	sp, r0
+
+/* Copy the data segment initializers from flash to SRAM */
+  ldr r0, =_sdata
  8000ac4:	480d      	ldr	r0, [pc, #52]	; (8000afc <LoopForever+0x6>)
+  ldr r1, =_edata
  8000ac6:	490e      	ldr	r1, [pc, #56]	; (8000b00 <LoopForever+0xa>)
+  ldr r2, =_sidata
  8000ac8:	4a0e      	ldr	r2, [pc, #56]	; (8000b04 <LoopForever+0xe>)
+  movs r3, #0
  8000aca:	2300      	movs	r3, #0
+  b LoopCopyDataInit
  8000acc:	e002      	b.n	8000ad4 <LoopCopyDataInit>
 
 08000ace <CopyDataInit>:
+
+CopyDataInit:
+  ldr r4, [r2, r3]
  8000ace:	58d4      	ldr	r4, [r2, r3]
+  str r4, [r0, r3]
  8000ad0:	50c4      	str	r4, [r0, r3]
+  adds r3, r3, #4
  8000ad2:	3304      	adds	r3, #4
 
 08000ad4 <LoopCopyDataInit>:
+
+LoopCopyDataInit:
+  adds r4, r0, r3
  8000ad4:	18c4      	adds	r4, r0, r3
+  cmp r4, r1
  8000ad6:	428c      	cmp	r4, r1
+  bcc CopyDataInit
  8000ad8:	d3f9      	bcc.n	8000ace <CopyDataInit>
+  
+/* Zero fill the bss segment. */
+  ldr r2, =_sbss
  8000ada:	4a0b      	ldr	r2, [pc, #44]	; (8000b08 <LoopForever+0x12>)
+  ldr r4, =_ebss
  8000adc:	4c0b      	ldr	r4, [pc, #44]	; (8000b0c <LoopForever+0x16>)
+  movs r3, #0
  8000ade:	2300      	movs	r3, #0
+  b LoopFillZerobss
  8000ae0:	e001      	b.n	8000ae6 <LoopFillZerobss>
 
 08000ae2 <FillZerobss>:
+
+FillZerobss:
+  str  r3, [r2]
  8000ae2:	6013      	str	r3, [r2, #0]
+  adds r2, r2, #4
  8000ae4:	3204      	adds	r2, #4
 
 08000ae6 <LoopFillZerobss>:
+
+LoopFillZerobss:
+  cmp r2, r4
  8000ae6:	42a2      	cmp	r2, r4
+  bcc FillZerobss
  8000ae8:	d3fb      	bcc.n	8000ae2 <FillZerobss>
+
+/* Call the clock system intitialization function.*/
+  bl  SystemInit
  8000aea:	f7ff ffe3 	bl	8000ab4 <SystemInit>
+/* Call static constructors */
+  bl __libc_init_array
  8000aee:	f002 f8ab 	bl	8002c48 <__libc_init_array>
+/* Call the application's entry point.*/
+  bl main
  8000af2:	f7ff fb95 	bl	8000220 <main>
 
 08000af6 <LoopForever>:
+
+LoopForever:
+    b LoopForever
  8000af6:	e7fe      	b.n	8000af6 <LoopForever>
+  ldr   r0, =_estack
  8000af8:	20004000 	.word	0x20004000
+  ldr r0, =_sdata
  8000afc:	20000000 	.word	0x20000000
+  ldr r1, =_edata
  8000b00:	20000020 	.word	0x20000020
+  ldr r2, =_sidata
  8000b04:	08002cf8 	.word	0x08002cf8
+  ldr r2, =_sbss
  8000b08:	20000020 	.word	0x20000020
- 8000b0c:	20000128 	.word	0x20000128
+  ldr r4, =_ebss
+ 8000b0c:	20000124 	.word	0x20000124
 
 08000b10 <ADC1_COMP_IRQHandler>:
+ * @retval : None
+*/
+    .section .text.Default_Handler,"ax",%progbits
+Default_Handler:
+Infinite_Loop:
+  b Infinite_Loop
  8000b10:	e7fe      	b.n	8000b10 <ADC1_COMP_IRQHandler>
 	...
 
@@ -1954,7 +2085,7 @@ __weak void HAL_IncTick(void)
  8000bbc:	bd80      	pop	{r7, pc}
  8000bbe:	46c0      	nop			; (mov r8, r8)
  8000bc0:	2000001c 	.word	0x2000001c
- 8000bc4:	20000124 	.word	0x20000124
+ 8000bc4:	20000120 	.word	0x20000120
 
 08000bc8 <HAL_GetTick>:
   * @note   This function is declared as __weak  to be overwritten  in case of other 
@@ -1973,7 +2104,7 @@ __weak uint32_t HAL_GetTick(void)
  8000bd2:	46bd      	mov	sp, r7
  8000bd4:	bd80      	pop	{r7, pc}
  8000bd6:	46c0      	nop			; (mov r8, r8)
- 8000bd8:	20000124 	.word	0x20000124
+ 8000bd8:	20000120 	.word	0x20000120
 
 08000bdc <__NVIC_EnableIRQ>:
   \details Enables a device specific interrupt in the NVIC interrupt controller.
