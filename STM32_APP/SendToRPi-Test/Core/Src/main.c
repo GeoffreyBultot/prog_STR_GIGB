@@ -399,14 +399,14 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 				/* is sending data on rising edge */
 				if(tx_byte_sending == C_N_BYTES_TOT)	// last byte+1 : end of communication
 				{
-					/*Start interrupt for timeout on communication */
+					/* Stop interrupt for timeout on communication */
 					HAL_TIM_Base_Stop_IT(&htim2);
 					htim2.Instance->CNT = 0;
 
-					// TX pin set for ending communication
+					/* TX pin set for ending communication */
 					HAL_GPIO_WritePin(TX_GPIO_Port, TX_Pin, GPIO_PIN_SET);
 
-					// set RX pin on falling edge again
+					/* set RX pin on falling edge again */
 					GPIO_InitStruct_RX.Mode = GPIO_MODE_IT_FALLING;
 					HAL_GPIO_Init(RX_GPIO_Port, &GPIO_InitStruct_RX);
 
@@ -420,7 +420,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 					/* Set TX to the bit value tracked */
 					HAL_GPIO_WritePin(TX_GPIO_Port, TX_Pin, (bToSend[tx_byte_sending] & (1<<tx_bit_sending)));
 
-					/* Increment stuff*/
+					/* Increment stuff */
 					tx_bit_sending++;
 					if(tx_bit_sending == 8){
 						tx_bit_sending = 0;
